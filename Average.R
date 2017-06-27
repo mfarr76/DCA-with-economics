@@ -2,6 +2,7 @@ rm(list = ls())
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("Updated_IHS.csv")
+
 min_lat <- 1000
 normal_lat <- 5000
 ####
@@ -33,8 +34,10 @@ pPhase <- ifelse(og_select == 1, quote(Oil), quote(Gas))
 
 ##filter and rename the production table
 input <- prod_tbl %>%
+  mutate(Time = as.POSIXct(as.Date(c.ProductionDate , "%m/%d/%y"), 
+                           origin = "1970-01-01", tz="UTC")) %>%
   select(WellId = Entity,
-         Time = c.ProductionDate,
+         Time,
          Oil = Liquid, 
          Gas = Gas, 
          EffLat = PerfIntervalGross)
