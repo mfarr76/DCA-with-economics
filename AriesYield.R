@@ -5,14 +5,16 @@ time.1 <- 10
 yield.1 <- 1000
 yield.2 <- 2000
 yield.3 <- 5000
-t.docProp <- 1
+mnth_day_select <- 1
+og_select <- 1
+
+time.units <- ifelse(mnth_day_select == 1, 12, 365)
+forecast.time <- forecast.years * time.units
 
 
-Yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
+aries_yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
 {
-  time.units <- ifelse(t.docProp == 1, "Months", "Days")
-  t.units <- ifelse(time.units == "Months", 12, 365)
-  forecast.time <- forecast.years * t.units
+
   
   ##1st segment##
   a.1 <- log( yield.1 / yield.2) / time.1 ##calc nominal decline
@@ -49,13 +51,15 @@ Yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
     r.2 <- (ratio.3 - ratio.4) / a.2
     
     ###append r.1 and r.2 for gor/yield forecast
-    #append(r.1,r.2)
+    append(r.1,r.2)
     
-    result <- data.frame(Time = seq_along(1:forecast.time), Yield = append(r.1,r.2))
+    ##Spotfire for some reason doesn't pick this up...only return Yield column??
+    #result <- data.frame(Time = seq_along(1:forecast.time), Yield = append(r.1,r.2))
   }
-  result
+
 }
 
-(GOR <- Yield(forecast.time, time.1, yield.1, yield.2, yield.3))
 
-#add this line...
+YieldForecast <- data.frame(Time = seq_along(1:forecast.time), Secondary = aries_yield(forecast.time, time.1, yield.1, yield.2, yield.3))
+
+ 

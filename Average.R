@@ -1,4 +1,4 @@
-rm(list = ls())
+  rm(list = ls())
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("Updated_IHS.csv")
@@ -34,7 +34,7 @@ pPhase <- ifelse(og_select == 1, quote(Oil), quote(Gas))
 
 ##filter and rename the production table
 input <- prod_tbl %>%
-  mutate(Time = as.POSIXct(as.Date(c.ProductionDate , "%m/%d/%y"), 
+  mutate(Time = as.POSIXct(as.Date(c.ProductionDate , "%m/%d/%Y"), 
                            origin = "1970-01-01", tz="UTC")) %>%
   select(WellId = Entity,
          Time,
@@ -59,7 +59,7 @@ if(nrow(input) < 1)
   
   ##################dplyr package used for data wrangling
   Average <- input %>%
-    arrange(WellId,
+    arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
     mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
