@@ -1,51 +1,60 @@
-<<<<<<< HEAD
-#rm(list = ls())
 
+#rm(list = ls())
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 #install.packages("purrr")
 #library(data.table)
 library(purrr)
 
 
-gas_price <- 0
+gas_price <- 3
 oil_price <- 60
+ngl_price <- oil_price * 0.4
+shrink <- .8
+ngl_yield <- 100 #bbl/mmcf
 
 capex <- 5000
 capex_mnth <- 1
 opex <- 1000
+work_int <- 1
 NRI <- .75
 discRateSingle <- 0.15
 prodMonth <- Cashflow$prd_mnth
 operIncome <- Cashflow$oper_income
 
 
-TypeWell1 <- TypeWell %>%
-              mutate(prd_mnth = Time, 
-                     oil_prod = qProd, 
-                     gas_prod = qProd) %>%
-              select(prd_mnth, 
-                     oil_prod, 
-                     gas_prod)
+##economics start on 01/01/2017
+#time_series <- seq(as.Date("2017/01/01"), by = "month", length.out = 360)
+
+
+Cashflow <- TypeCurve %>%
+  mutate(
+    gr_wet_gas.mcf = Gas.mcf, #mcf
+    gr_oil.bbl = Oil.bbl, #bbl
+    gr_dry_gas.mcf = Gas.mcf * shrink, #shrink gas
+    gr_ngl.bbl = Gas.mcf / 1000 * ngl_yield, #bbl
+    net_gas.mcf = Gas.mcf * NRI * work_int, #mcf
+    net_oil.bbl = Oil.bbl * NRI * work_int, #bbl
+    net_ngl.bbl = gr_ngl.bbl * NRI * work_int, #bbl
+    net_gas_rev =  net_gas.mcf * gas_price, #units $
+    net_oil_rev = net_oil.bbl * oil_price, #units $
+    net_ngl_rev = net_ngl.bbl * ngl_price, #units $
+    net_rev = net_gas_rev + net_oil_rev + net_ngl_rev, #units $
+    oper_income = net_rev - opex, #units $
+    undisc_cash_flow = oper_income - ifelse(Time == capex_mnth, capex * 1000, 0),
+    disc_capex = ifelse(Time == capex_mnth, (1/(1 + discRateSingle)^((capex_mnth - 1)/12))*capex*1000, 0), 
+    disc_cash_flow = oper_income *(1/(1 + discRateSingle)^((Time - 0.5) / 12)) - disc_capex) %>%
+  filter(oper_income >= 0) %>%
+  select(Time, gr_wet_gas.mcf, gr_oil.bbl, 
+         gr_dry_gas.mcf, gr_ngl.bbl, net_gas.mcf, 
+         net_oil.bbl, net_ngl.bbl, net_gas_rev, 
+         net_oil_rev, net_ngl_rev, net_rev, 
+         oper_income, undisc_cash_flow, disc_capex, disc_cash_flow)
 
 
 
-Cashflow <- TypeWell1 %>%
-          mutate(net_gas_rev = gas_prod * gas_price * NRI, #units $
-                 net_oil_rev = oil_prod * oil_price * NRI, #units $
-                 net_rev = net_gas_rev + net_oil_rev, #units $
-                 oper_income = net_rev - opex, #units $
-                 undisc_cash_flow = oper_income - 
-                    ifelse(prd_mnth == capex_mnth, capex * 1000, 0),
-                 ##duplicate undisc_cash_flow to start after capex month
-                 ##used to filter negative cash flow out of data....LOSS ZERO
-                 undisc_cash_flow1 = if_else(prd_mnth > (capex_mnth), undisc_cash_flow, 0),
-                 #disc capex and cash flow
-                 disc_capex = ifelse(prd_mnth == capex_mnth, (1/(1 + discRateSingle)^
-                    ((capex_mnth - 1)/12))*capex*1000, 0), 
-                 disc_cash_flow = oper_income *(1/(1 + discRateSingle)^
-                    ((prd_mnth - 0.5) / 12)) - disc_capex) %>%
-           filter(undisc_cash_flow1 >= 0)
+write.csv(Cashflow, file = "cashflow.csv")
 
-#capexMonth <- capex_mnth
+
 
 cf <- function(prodMonth, capex, capexMonth, operIncome)
 {
@@ -85,10 +94,13 @@ cf <- function(prodMonth, capex, capexMonth, operIncome)
 }
 
 
-NPV.Table <- cf(Cashflow$prd_mnth, capex, capex_mnth, Cashflow$oper_income)
+NPV.Table <- cf(Cashflow$Time, capex, capex_mnth, Cashflow$oper_income)
+ifelse(xy > 0, 1,unlist(approx(NPV.Table$NPV, NPV.Table$Disc.Rate, 0))[2])
+
+
 
 ####inerpolate
-IRR <- unlist(approx(NPV.Table$NPV, NPV.Table$Disc.Rate, 0))[2]
+IRR <- ifelse(as.numeric(NPV.Table[21,2]) > 0, 1,unlist(approx(NPV.Table$NPV, NPV.Table$Disc.Rate, 0))[2])
 IRR
 
 DPI <- sum(Cashflow$disc_cash_flow, na.rm = TRUE)/sum(Cashflow$disc_capex, na.rm = TRUE) + 1
@@ -104,3 +116,11 @@ write.csv(NPV.Table, file = "npvTable.csv")
 #write.csv(cash, file = "cash.csv")
 #write.csv(cashflow, file = "cshflw.csv")
 #write.csv(disc_cash_flow, file = "dcf.csv")
+
+
+
+save(list=ls(), file='C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData', RFormat=TRUE)
+TimeStamp=paste(date(),Sys.timezone())
+tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
+if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/cashflowRData.RData',sep=''), RFormat=T )))
+
