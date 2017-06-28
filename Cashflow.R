@@ -18,8 +18,7 @@ opex <- 1000
 work_int <- 1
 NRI <- .75
 discRateSingle <- 0.15
-prodMonth <- Cashflow$prd_mnth
-operIncome <- Cashflow$oper_income
+
 
 
 ##economics start on 01/01/2017
@@ -50,9 +49,6 @@ Cashflow <- TypeCurve %>%
          net_oil_rev, net_ngl_rev, net_rev, 
          oper_income, undisc_cash_flow, disc_capex, disc_cash_flow)
 
-
-
-write.csv(Cashflow, file = "cashflow.csv")
 
 
 
@@ -95,7 +91,7 @@ cf <- function(prodMonth, capex, capexMonth, operIncome)
 
 
 NPV.Table <- cf(Cashflow$Time, capex, capex_mnth, Cashflow$oper_income)
-ifelse(xy > 0, 1,unlist(approx(NPV.Table$NPV, NPV.Table$Disc.Rate, 0))[2])
+
 
 
 
@@ -119,7 +115,7 @@ write.csv(NPV.Table, file = "npvTable.csv")
 
 
 
-save(list=ls(), file='C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData', RFormat=TRUE)
+
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
 if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/cashflowRData.RData',sep=''), RFormat=T )))

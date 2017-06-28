@@ -78,7 +78,7 @@ if(nrow(input) < 1)
   
 }
 
-save(list=ls(), file='C:/Users/MFARR/Documents/R_files/Spotfire.data/Average.RData', RFormat=TRUE)
+
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
 if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/average.in.RData',sep=''), RFormat=T )))
