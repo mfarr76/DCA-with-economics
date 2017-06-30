@@ -58,7 +58,7 @@ cf <- function(prodMonth, capex, capexMonth, operIncome)
   capexM <- capex*1000
   #create discount rate range from 0 to 100%
   discRate <- seq(0, 1, by = 0.05) 
-  #sequental list of discRate 0 to 21
+  #sequental list of discRate from 0 to 21
   discRateLng <- as.numeric(seq_along(discRate))
   
   ##sapply function to create a matrix of discount rate and production month
@@ -72,7 +72,9 @@ cf <- function(prodMonth, capex, capexMonth, operIncome)
   discCfTbl[capexMonth,] <- discCfTbl[capexMonth,] - discCapex 
   
   ##map function from purrr to sum up the column to get a single value
+  ##could to use apply function instead
   discCfSum <- map_df(discCfTbl, sum, na.rm = TRUE)
+  #discCfSum <- apply(discCfTbl, 2, sum)
   ##transpose
   discCfSum <- t(discCfSum)
   
@@ -101,6 +103,14 @@ IRR
 
 DPI <- sum(Cashflow$disc_cash_flow, na.rm = TRUE)/sum(Cashflow$disc_capex, na.rm = TRUE) + 1
 DPI
+
+
+#-----------------------------------------------------------------------------
+##
+
+
+
+
 
 mod <- lm(formula = Disc.Rate ~ as.vector(NPV), data = NPV.Table)
 

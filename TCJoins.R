@@ -26,6 +26,9 @@ TC.Lbs.Ft <- 1500
 #Typecurve name
 CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
 
+prod_tbl <- production %>%
+  
+
 
 
 ##make data types the same
@@ -43,9 +46,10 @@ TCGroups <- TypeCurve %>%
 ##copy 12 month cum for every well in the typecurve and name it CurveName
 CUMprod <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
-  mutate(Name = CurveName) %>%
+  mutate(Name = CurveName, 
+         Time = as.numeric(c.Months)) %>%
   select(Name,
-         Time = c.Months, 
+         Time, 
          CUM12MOOil = c.CumLIQUID.MBO.NORM, 
          CUM12MOGas = c.CumGAS.MMCF.NORM)
 
@@ -53,7 +57,8 @@ CUMprod <- prod_tbl %>%
 ##copy the 12 month cum from the typecurve and name it CUMTC
 CUMtc <- TypeCurve %>%
   filter(Time == 12) %>%
-  mutate(Name = paste("CUMTC", CurveName)) %>%
+  mutate(Name = paste("CUMTC", CurveName),
+         Time = as.numeric(Time)) %>%
   select(Time, Name, CUM12MOOil = cumOil.mbo, CUM12MOGas = cumGas.mmcf)
 
 ##Combine CUMprod and CUMtc into 1 table called "TC.Cums"
