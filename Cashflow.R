@@ -1,5 +1,5 @@
 
-#rm(list = ls())
+rm(list = ls())
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 #install.packages("purrr")
 #library(data.table)
