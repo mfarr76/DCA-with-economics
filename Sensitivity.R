@@ -2,10 +2,9 @@
 rm(list = ls())
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow_v2.RData")
 
+###########-------------------------------------------
 
-
-###########------------------
-
+###cashflow - F11 output 
 
 
 wellnames <- unique(TCGroups$Name)
@@ -17,34 +16,40 @@ for(i in 1:length(wellnames))
 }
 capex_mnth <- 1
 
-cshflow <- function(x)
-{
+##this function is setup to loop through the individual typecurves
+##and use the user variable in the inputs table (capex, opex, wi, nri)
+cshflow <- function(x, y, z) 
+  ##x = tc_list generates unique names of typecurves
+  ##y = price file name --- user pricefile or sensivity price 
+  ##z = row in the matrix --- user only has 1 row -- sensitivity price has 9 rows
+{ 
   red_tc <- subset(TCGroups, Name == tc_list[x]) #reduce/filter the typecurves one at a time 
   red_inputs <- inputs[x, 1:ncol(inputs)] #reduce/filter the user inputs to match the typecurves
   TCName = red_tc$Name
-  Time = as.numeric(red_tc$Time)
+  Time = as.numeric(red_tc$Time) #
   GRGas.mcf = as.numeric(red_tc$Gas.mcf)
   GROil.bbl = as.numeric(red_tc$Oil.bbl)
   GRNgl.bbl = as.numeric(GRGas.mcf/1000 * red_inputs$ngl.yield)
   NetDryGas = as.numeric(GRGas.mcf * red_inputs$shrink * red_inputs$nri * red_inputs$wi)
   NetOil = as.numeric(GROil.bbl * red_inputs$nri * red_inputs$wi)
   NetNGL = as.numeric(GRNgl.bbl * red_inputs$nri * red_inputs$wi)
-  GasRev = NetDryGas * gas_price
-  OilRev = NetOil * oil_price
-  NGLRev = NetNGL * ngl_price
+  GasRev = NetDryGas * y[z, 1] ##example --- price[4,1] -> 2.5
+  OilRev = NetOil * y[z, 2]
+  NGLRev = NetNGL * y[z, 3]
   NetRev = GasRev + OilRev + NGLRev
   OpIncome = NetRev - red_inputs$opex
   Undisc.CF = OpIncome - ifelse(Time == capex_mnth, red_inputs$capex * 1000, 0)
   Disc.Capex = (ifelse(Time == capex_mnth, (1/(1 + red_inputs$Discount_Rate)^((capex_mnth - 1)/12))*red_inputs$capex*1000, 0))
   Disc.CF = as.numeric(OpIncome *(1/(1 + red_inputs$Discount_Rate)^((Time - 0.5) / 12)) - Disc.Capex)
+  CumDisc.CF = cumsum(Disc.CF) 
   
   results <- data.frame(TCName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, NetDryGas, NetOil, NetNGL,
-                        GasRev, OilRev, NGLRev, NetRev, OpIncome, Undisc.CF, Disc.Capex, Disc.CF)
+                        GasRev, OilRev, NGLRev, NetRev, OpIncome, Undisc.CF, Disc.Capex, Disc.CF, CumDisc.CF)
   
-  results <- filter(results, OpIncome > 0)
+  results_cshflow <- filter(results, OpIncome > 0)
   
   
-  return(results)
+  return(results_cshflow)
 }
 
 xy <- cshflow(2)
@@ -58,31 +63,13 @@ for(i in 1:length(wellnames))
 }
 CashFlow
 
-###-------------------------------------------------------------
-
+###########-------------------------------------------
 
 ###sensitivity on price###
 
 sensitivity_choice <- "GAS"
 flat_price <- 3
 
-
-price <- matrix(0, 9, 3)
-colnames(price) <- c("gPrice", "oPRice", "nPrice")
-
-
-price <- ifelse(sensitivity_choice == "GAS",(
-  price[,1] <- flat_price
-  price[,2] <- seq(30, 70, by = 5)
-  price[,3] <- price[,2] *0.4),( 
-    price[,1] <- seq(1, 5, by = 0.5)
-    price[,2] <- flat_price
-    price[,3] <- price[,2] *0.4)) 
-
-
-price[,1:3] <- c(flat_price, seq(30, 70, by = 5),price[,2] *0.4)
-
-rm(price)
 
 if(sensitivity_choice == "GAS")
 {
@@ -96,7 +83,14 @@ if(sensitivity_choice == "GAS")
   nPrice <- oPrice *0.4
   price <- cbind(gPrice, oPrice, nPrice)
 }
-price[[2, "gPrice"]]
+price[2, "gPrice"]
+price[4, 1]
+
+gUser <- 3
+oUser <- 40
+nUser <- oUser * 0.4
+user_price <- cbind(gUser, oUser, nUser)
+
 
 gPrice <- seq(1, 5, by = 0.5)
 oPrice <- seq(30, 70, by = 5)
@@ -150,6 +144,3 @@ for(i in 1:length(wellnames)){
 
 
 unique(CashFlowPrice$TCName)
-
-
-
