@@ -1,16 +1,20 @@
 
 rm(list = ls())
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow_v2.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 
 library(dplyr)
 library(purrr)
 ###########-------------------------------------------
 
 ###cashflow - F11 output 
+TCGroups <- tcgroup
 
+apply(TCGroups$Name, 2, function(x) unique(x[!is.na(x)]))
 
-wellnames <- unique(TCGroups$Name)
+wellnames <- unique(TCGroups$Name[!is.na(TCGroups$Name)])
+
+#wellnames <- unique(TCGroups$Name)
 
 gUser <- 3
 oUser <- 100
@@ -103,17 +107,17 @@ flat_price <- 3
 if(sensitivity_choice == "GAS")
 {
   gPrice <- flat_price
-  oPrice <- seq(30, 70, by = 5)
+  oPrice <- seq(10, 100, by = 10)
   nPrice <- oPrice *0.4
   price <- cbind(gPrice, oPrice, nPrice)
 }else{
-  gPrice <- seq(1, 5, by = 0.5)
+  gPrice <- seq(1, 5.5, by = 0.5)
   oPrice <- flat_price
   nPrice <- oPrice *0.4
   price <- cbind(gPrice, oPrice, nPrice)
 }
 
-
+price[2,2]
 
 ######------------------
 #price sensitivity
@@ -127,6 +131,7 @@ for(i in 1:length(wellnames)){
   {
     cf_price <- cshflow(i, price, j)
     cf_price$scenario <- paste(price[j,1], '-' ,price[j,2], '-' , price[j,3])
+    cf_price$price <- ifelse(sensitivity_choice == "GAS", price[j,2], price[j, 1]) 
     CashFlowPrice <- rbind( CashFlowPrice , cf_price)
     
   }
@@ -134,35 +139,19 @@ for(i in 1:length(wellnames)){
 
 price[8,1]
 
-CashFlowPrice %>%
-  group_by(scenario) %>%
-  summarise(max(CumDisc.CF))
+rm(CashflowPrice)
+
+CashFlowPrice <- CashFlowPrice %>% 
+  group_by(TCName, scenario) %>% 
+  summarise(NPV = max(CumDisc.CF), Price = mean(price)) %>%
+  arrange(TCName, Price)
+
 
 
 
 
 ###########-------------------------------------------
 
-###sensitivity on price###
-
-sensitivity_choice <- "GAS"
-flat_price <- 3
-
-
-if(sensitivity_choice == "GAS")
-{
-  gPrice <- flat_price
-  oPrice <- seq(30, 70, by = 5)
-  nPrice <- oPrice *0.4
-  price <- cbind(gPrice, oPrice, nPrice)
-}else{
-  gPrice <- seq(1, 5, by = 0.5)
-  oPrice <- flat_price
-  nPrice <- oPrice *0.4
-  price <- cbind(gPrice, oPrice, nPrice)
-}
-price[2, "gPrice"]
-price[4, 1]
 
 
 ###########-------------------------------------------
@@ -209,23 +198,58 @@ for(i in 1:length(wellnames)){
   for(j in 1:length(discRate))
   {
     cf_dr <- cshflow_discount(i, j)
-    cf_dr$scenario <- paste(discRate[j])
+    cf_dr$Disc.Rate <- paste(as.numeric(discRate[j]))
     Cashflow.disc <- rbind(Cashflow.disc, cf_dr)
     
   }
 }
 
-cashflow.dr <- Cashflow.disc %>%
-  group_by(TCName, scenario) %>%
-  summarise(sum(Disc.CF))
+Cashflow.disc <- Cashflow.disc %>%
+  mutate(Disc.Rate = as.numeric(Disc.Rate)) %>%
+  group_by(TCName, Disc.Rate) %>%
+  summarise(NPV = sum(Disc.CF))
 
 
 
 
-####inerpolate
-IRR <- ifelse(as.numeric(NPV.Table[21,2]) > 0, 1,unlist(approx(NPV.Table$NPV, NPV.Table$Disc.Rate, 0))[2])
-IRR
 
-DPI <- sum(Cashflow$disc_cash_flow, na.rm = TRUE)/sum(Cashflow$disc_capex, na.rm = TRUE) + 1
-DPI
+
+CF.Metrics <- function(n){
+  irr_sub <- subset(Cashflow.disc, TCName == wellnames[n])
+  IRR <- ifelse(irr_sub[21,3] > 0, 1, 
+                unlist(approx(irr_sub$NPV, irr_sub$Disc.Rate, 0))[2])
+  colnames(IRR) <- "IRR"
+  
+  dpi_sub <- subset(CashFlow, TCName == wellnames[n])
+  DPI <- sum(dpi_sub$Disc.CF, na.rm = TRUE) / sum(dpi_sub$Disc.Capex, na.rm = TRUE) + 1  
+  
+  brkEven_sub <- subset(CashFlowPrice, TCName == wellnames[n])
+  BrkEven <- unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2])
+  
+  metrics <- data.frame(IRR, DPI, BrkEven)
+  
+  return(metrics)
+}
+
+
+
+
+
+xy <- subset(Cashflow.disc, TCName == wellnames[2])
+mm <- ifelse(xy[21,3] > 0 , 1, unlist(approx(xy$NPV, xy$Disc.Rate, 0))[2])
+
+xy[21,2]
+xy[21,3]
+
+
+brkEven_sub <- subset(CashFlowPrice, TCName == wellnames[n])
+BrkEven <- unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2])
+
+
+n <- 3
+
+
+Econ_Metrics <- data.frame(wellnames, map_df(1:length(wellnames), CF.Metrics))
+
+
 
