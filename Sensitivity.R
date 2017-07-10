@@ -1,6 +1,6 @@
 
 rm(list = ls())
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 
 library(dplyr)
@@ -10,14 +10,16 @@ library(purrr)
 ###cashflow - F11 output 
 TCGroups <- tcgroup
 
-apply(TCGroups$Name, 2, function(x) unique(x[!is.na(x)]))
-
 wellnames <- unique(TCGroups$Name[!is.na(TCGroups$Name)])
 
 #wellnames <- unique(TCGroups$Name)
 
-gUser <- 3
-oUser <- 100
+
+
+
+
+gUser <- econTbl[1,2]
+oUser <- econTbl[1,3]
 nUser <- oUser * 0.4
 user_price <- cbind(gUser, oUser, nUser)
 
@@ -29,7 +31,7 @@ for(i in 1:length(wellnames))
 }
 capex_mnth <- 1
 #inputs <- userinputs[1, 1:ncol(userinputs)]
-inputs <- userinputs
+#inputs <- userinputs
 
 inputs[2,1]
 
@@ -44,13 +46,15 @@ red_inputs <- subset(inputs, wellname == tc_list[1])
 ##x = tc_list generates unique names of typecurves
 ##y = price file name --- user pricefile or sensivity price 
 ##z = row in the matrix --- user only has 1 row -- sensitivity price has 9 rows
-
+x <- 1
+z <- 1
+y <- user_price
 cshflow <- function(x, y, z) 
 
 { 
   red_tc <- subset(TCGroups, Name == tc_list[x]) #reduce/filter the typecurves one at a time 
   #red_inputs <- inputs[x, 1:ncol(inputs)] #reduce/filter the user inputs to match the typecurves
-  red_inputs <- subset(inputs, wellname == tc_list[x])
+  red_inputs <- subset(econTbl, tcName == tc_list[x])
   #red_inputs <- if(tc_list[x] != inputs[x, 1]){stop("Error", call. = FALSE)}else{inputs[x, 1:ncol(inputs)]}
   TCName = red_tc$Name
   Time <-  as.numeric(red_tc$Time) #
@@ -66,8 +70,8 @@ cshflow <- function(x, y, z)
   NetRev <- GasRev + OilRev + NGLRev
   OpIncome <- NetRev - red_inputs$opex
   Undisc.CF <- OpIncome - ifelse(Time == capex_mnth, red_inputs$capex * 1000, 0)
-  Disc.Capex <- (ifelse(Time == capex_mnth, (1/(1 + red_inputs$discount.rate)^((capex_mnth - 1)/12))*red_inputs$capex*1000, 0))
-  Disc.CF <- as.numeric(OpIncome *(1/(1 + red_inputs$discount.rate)^((Time - 0.5) / 12)) - Disc.Capex)
+  Disc.Capex <- (ifelse(Time == capex_mnth, (1/(1 + red_inputs$dRate)^((capex_mnth - 1)/12))*red_inputs$capex*1000, 0))
+  Disc.CF <- as.numeric(OpIncome *(1/(1 + red_inputs$dRate)^((Time - 0.5) / 12)) - Disc.Capex)
   CumDisc.CF <- cumsum(Disc.CF) 
   
   results <- data.frame(TCName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, NetDryGas, NetOil, NetNGL,

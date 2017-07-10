@@ -54,7 +54,8 @@ if(pPhase == "Oil")
 if(nrow(input) < 1)
 {#in no wells are selected, create an Average table with zeros 
   Average <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
-                        Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0))
+                        Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0), 
+                        CUMGas = c(0), CUMOil = c(0))
 }else{
   
   ##################dplyr package used for data wrangling

@@ -51,7 +51,7 @@ time_wBU <- total_time - time.to.peak
 prod_time1 <- seq_along(1:time_wBU)
 prod_time2 <- prod_time1 - 1
 a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
-time_trans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * time_units) #time to transition to Dmin
+timeTrans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * time_units) #time to transition to Dmin...leave in this nominclature for spotfire
 
 
 
@@ -59,10 +59,8 @@ DCA <- function(qi, Di, b, Dmin, Years)
 {
   if(qi == 0)
 {
-  TypeCurve <- data.frame(Time = c(0), 
-                          qProd = c(0),
-                          NpProd = c(0),
-                          Yield = c(0))
+  return(data.frame(Primary = c(0)))
+                          
 }else{
     TypeCurve <- if(b == 0)
     { #exponential decline
@@ -89,7 +87,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
       ai <- (1 / (time_units * b))*((1 - Di)^- b-1) #nominal deline per time units 
       #a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
       #t.trans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * t.units) #time to reach Dmin
-      t_trans_seq1 <- seq_along(1:time_trans)
+      t_trans_seq1 <- seq_along(1:timeTrans)
       t_trans_seq2 <- t_trans_seq1 - 1
       
       ###########forecast to Dmin################
@@ -99,10 +97,10 @@ DCA <- function(qi, Di, b, Dmin, Years)
       
       ##########forecast expontintal to abandonment rate (Terminal decline portion of the curve)#########
       aDmin <- -log(1 - Dmin)/time_units
-      q.trans <- qi / ((1 + b * ai * time_trans))^(1 / b) #rate at transition month 
-      Np.trans <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b * time_trans)^((1 - b) / b)))) #cum volume at tranistion month
-      time_ab1 <- seq_along(1:(time_wBU - time_trans))
-      time_ab2 <- 0:(time_wBU - time_trans - 1)
+      q.trans <- qi / ((1 + b * ai * timeTrans))^(1 / b) #rate at transition month 
+      Np.trans <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b * timeTrans)^((1 - b) / b)))) #cum volume at tranistion month
+      time_ab1 <- seq_along(1:(time_wBU - timeTrans))
+      time_ab2 <- 0:(time_wBU - timeTrans - 1)
       
       #########forecast from Dmin to end of forecast
       Exp.Np1 <- Np.trans + q.trans / aDmin * (1 - exp(-aDmin * time_ab1))
@@ -115,7 +113,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
     rate.BU <- tc_table$Prod.IP[1:time.to.peak]
 
     #ifelse(append(rate.BU, TypeCurve) > abRate, append(rate.BU, TypeCurve), NA)
-    append(rate.BU, TypeCurve)
+    return(append(rate.BU, TypeCurve))
     
   }
   
@@ -125,39 +123,33 @@ TypeCurve <- data.frame(Time = seq(1:total_time),
                           Primary = DCA(qi, Di, b, Dmin, Years))
 
 
-
-                       
-TypeCurve <- left_join(TypeCurve, YieldForecast, by = c("Time")) %>%
-  filter(Primary >= abRate) %>%
-  mutate(Gas.mcf = if(og_select == 1){Primary/1000 * Secondary}else{Primary}, #mcf
-         Oil.bbl = if(og_select == 1){Primary}else{Primary * Secondary/1000}, #bbl
-         Ratio = Secondary,
-         cumGas.mmcf = cumsum(Gas.mcf)/1000, #mmcf
-         cumOil.mbo = cumsum(Oil.bbl)/1000) %>% #mbo 
-  select(Time, 
-         Gas.mcf, 
-         Oil.bbl, 
-         Ratio, 
-         cumGas.mmcf, 
-         cumOil.mbo)
-
-
-TypeCurve <- TypeCurve %>%
-  filter(Primary >= abRate) %>%
-  mutate(Gas.mcf = if(og_select == 1){Primary/1000 * Secondary}else{Primary}, #mcf
-         Oil.bbl = if(og_select == 1){Primary}else{Primary * Secondary/1000}, #bbl
-         Ratio = Secondary,
-         cumGas.mmcf = cumsum(Gas)/1000, #mmcf
-         cumOil.mbo = cumsum(Oil)/1000) %>% #mbo 
-  select(Time, 
-         Gas.mcf, 
-         Oil.bbl, 
-         Ratio, 
-         cumGas.mmcf, 
-         cumOil.mbo)
-
-
-
+if(nrow(tc_table) == 1)
+{
+  TypeCurve <- data.frame(Time = c(Sys.time()), Gas.mcf = c(0), Oil.bbl = c(0),
+                        Ratio = c(0), cumOil.mbo = c(0))
+  
+}else{
+  TypeCurve <- left_join(TypeCurve, YieldForecast, by = c("Time")) %>%
+    filter(Primary >= abRate) %>%
+    mutate(Gas.mcf = if(og_select == 1){Primary/1000 * Secondary}else{Primary}, #mcf
+           Oil.bbl = if(og_select == 1){Primary}else{Primary * Secondary/1000}, #bbl
+           Ratio = Secondary,
+           cumGas.mmcf = cumsum(Gas.mcf)/1000, #mmcf
+           cumOil.mbo = cumsum(Oil.bbl)/1000) %>% #mbo 
+    select(Time, 
+           Gas.mcf, 
+           Oil.bbl, 
+           Ratio, 
+           cumGas.mmcf, 
+           cumOil.mbo)
+  
+}
+                   
+if(nrow(tc_table) == 1)
+{
+  TypeCurve <- data.frame(CumGas12MO.mmcf = c(0), CUMOil12MO.mbo = c(0), GasEUR.mmcf = c(0),
+                          OilEUR.mbo = c(0), TotalEUR.mboe = c(0))
+}else{
 
 forecast.table <- TypeCurve %>%
     mutate(CumGas12MO.mmcf = cumGas.mmcf, #mmcf
@@ -171,6 +163,7 @@ forecast.table <- TypeCurve %>%
            GasEUR.mmcf, 
            OilEUR.mbo, 
            TotalEUR.mboe)
+}
 forecast.table
 
 
