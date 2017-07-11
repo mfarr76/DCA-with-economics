@@ -1,4 +1,5 @@
-  rm(list = ls())
+rm(list = ls())
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")  
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("Updated_IHS.csv")
@@ -71,6 +72,8 @@ if(nrow(input) < 1)
            CUMGas = cumsum(Gas1)) %>% 
     group_by(Months) %>%
     summarise(Gas = mean(Gas1), #mcf
+              GasP10 = quantile(Gas1, p = 0.90), 
+              GasP90 = quantile(Gas1, p = 0.10),
               Oil = mean(Oil1), #bbl
               CUMGas = mean(CUMGas), #mcf
               CUMOil = mean(CUMOil), #bbl
