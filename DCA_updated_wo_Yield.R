@@ -3,7 +3,7 @@
 
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
 
 
@@ -38,11 +38,14 @@ user_phase$Stream <- data.frame(Average.Monthly[cInput])
 qi <- max(slice(user_phase$Stream, 1:12), na.rm = TRUE)
 
 
+
 ##########
-#names.df1 <- c("GasP10", "OilP10")
+#qi <- max(slice(test, 1:12), na.rm = TRUE)
+#ttp <- test %>% filter(OilP10 == qi) %>% select(Months)
+#names.df1 <- c("Months", "OilP10")
 #rm(names.df)
 #names.df <- colnames(Average.Monthly)
-#select_(Average.Monthly, .dots = names.df1)
+#test <- select_(Average.Monthly, .dots = names.df1)
 ################
 #Average.Monthly[,cInput]
 ################LOOK INTO MORE TO UNDERSTAND  https://gist.github.com/djhocking/62c76e63543ba9e94ebe
@@ -71,9 +74,9 @@ Di <- Di/100
 Dmin <- Dmin/100
 
 mnth_day_select <- 1
-time_units <- ifelse(mnth_day_select == 1, 12, 365)
+time_unit <- ifelse(mnth_day_select == 1, 12, 365)
 #t.units <- ifelse(TimeUnits == "Months", 12, 365) #change time units days/months
-total_time <- Years * time_units #input from user on years * units
+total_time <- Years * time_unit #input from user on years * units
 #time.to.peak <- tc_table$Months[which.max(tc_table$Prod.IP)]
 time.to.peak <- user_phase$Time[user_phase$Stream == qi]
 
@@ -83,7 +86,7 @@ time_wBU <- total_time - time.to.peak
 prod_time1 <- seq_along(1:time_wBU)
 prod_time2 <- prod_time1 - 1
 a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
-timeTrans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * time_units) #time to transition to Dmin...leave in this nominclature for spotfire
+timeTrans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * time_unit) #time to transition to Dmin...leave in this nominclature for spotfire
 
 
 
@@ -97,7 +100,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
 }else{
     TypeCurve <- if(b == 0)
     { #exponential decline
-      ai <- -log(1-Di)/time_units
+      ai <- -log(1-Di)/time_unit
       Exp.Np1 <- qi / ai * (1 - exp(-ai * prod_time1))
       Exp.Np2 <- qi / ai * (1 - exp(-ai * prod_time2))
       
@@ -106,7 +109,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
       
     }else if(b == 1){ #harmonic decline
       
-      ai <- (Di / (1 - Di) / time_units)
+      ai <- (Di / (1 - Di) / time_unit)
       Har.Np1 <- qi / ai * log(1 + ai * prod_time1)
       Har.Np2 <- qi / ai * log(1 + ai * prod_time2)
       
@@ -117,7 +120,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
       
       ###############Hyperbolic - b value is not 0 or 1
       #determine parameters for Dmin
-      ai <- (1 / (time_units * b))*((1 - Di)^- b-1) #nominal deline per time units 
+      ai <- (1 / (time_unit * b))*((1 - Di)^- b-1) #nominal deline per time units 
       #a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
       #t.trans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * t.units) #time to reach Dmin
       t_trans_seq1 <- seq_along(1:timeTrans)
@@ -129,7 +132,7 @@ DCA <- function(qi, Di, b, Dmin, Years)
       Hyp.NpDmin <- Hyp.Np.toDmin1  - Hyp.Np.toDmin2
       
       ##########forecast expontintal to abandonment rate (Terminal decline portion of the curve)#########
-      aDmin <- -log(1 - Dmin)/time_units
+      aDmin <- -log(1 - Dmin)/time_unit
       q.trans <- qi / ((1 + b * ai * timeTrans))^(1 / b) #rate at transition month 
       Np.trans <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b * timeTrans)^((1 - b) / b)))) #cum volume at tranistion month
       time_ab1 <- seq_along(1:(time_wBU - timeTrans))

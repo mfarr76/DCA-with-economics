@@ -1,6 +1,6 @@
 
 rm(list = ls())
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 
 library(dplyr)
@@ -70,8 +70,8 @@ cshflow <- function(x, y, z)
   NetRev <- GasRev + OilRev + NGLRev
   OpIncome <- NetRev - red_inputs$opex
   Undisc.CF <- OpIncome - ifelse(Time == capex_mnth, red_inputs$capex * 1000, 0)
-  Disc.Capex <- (ifelse(Time == capex_mnth, (1/(1 + red_inputs$dRate)^((capex_mnth - 1)/12))*red_inputs$capex*1000, 0))
-  Disc.CF <- as.numeric(OpIncome *(1/(1 + red_inputs$dRate)^((Time - 0.5) / 12)) - Disc.Capex)
+  Disc.Capex <- (ifelse(Time == capex_mnth, (1/(1 + red_inputs$discount.rate)^((capex_mnth - 1)/12))*red_inputs$capex*1000, 0))
+  Disc.CF <- as.numeric(OpIncome *(1/(1 + red_inputs$discount.rate)^((Time - 0.5) / 12)) - Disc.Capex)
   CumDisc.CF <- cumsum(Disc.CF) 
   
   results <- data.frame(TCName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, NetDryGas, NetOil, NetNGL,
@@ -83,21 +83,27 @@ cshflow <- function(x, y, z)
   return(results_cshflow)
 }
 
-xy <- cshflow(2, user_price, 1)
-unique(xy$TCName)
+###testing 
+x <-1
+y <- user_price
+z <- 1
+cf <- cshflow(1, user_price, 1)
+head(cf)
 
-CashFlow1 <- data.frame()
-for(i in 1:length(wellnames))
+
+
+cashflow <- data.frame()
+for(i in 1:length(wellnames)) #number of time to loop
 {
-  cf1 <- cshflow(i, user_price, 1)
-  CashFlow1 <- rbind(CashFlow1, cf1)
+  cf1 <- cshflow(i, user_price, 1) #call cshflow function
+  CashFlow1 <- rbind(CashFlow1, cf1) #store the results of each loop
 }
-CashFlow1
+CashFlow
 
 
 
 
-CashFlow1 %>%
+cashflow %>%
   group_by(TCName) %>%
   summarise(max(CumDisc.CF), sum(GROil.bbl), sum(GRGas.mcf), sum(NetDryGas),
             sum(NetRev), sum(GasRev), sum(OilRev), sum(NGLRev))
@@ -129,23 +135,23 @@ price[2,2]
 
 
 
-CashFlowPrice <- data.frame()
+cashflow.price <- data.frame()
 for(i in 1:length(wellnames)){
   for(j in 1:nrow(price))
   {
     cf_price <- cshflow(i, price, j)
     cf_price$scenario <- paste(price[j,1], '-' ,price[j,2], '-' , price[j,3])
     cf_price$price <- ifelse(sensitivity_choice == "GAS", price[j,2], price[j, 1]) 
-    CashFlowPrice <- rbind( CashFlowPrice , cf_price)
+    cashflow.price <- rbind( cashflow.price , cf_price)
     
   }
 }
 
 price[8,1]
 
-rm(CashflowPrice)
+rm(cashflow.price)
 
-CashFlowPrice <- CashFlowPrice %>% 
+cashflow.price <- cashflow.price %>% 
   group_by(TCName, scenario) %>% 
   summarise(NPV = max(CumDisc.CF), Price = mean(price)) %>%
   arrange(TCName, Price)
@@ -219,15 +225,15 @@ Cashflow.disc <- Cashflow.disc %>%
 
 
 CF.Metrics <- function(n){
-  irr_sub <- subset(Cashflow.disc, TCName == wellnames[n])
+  irr_sub <- subset(CashFlow.disc, TCName == wellnames[n]) #subset to link colnames with tc name
   IRR <- ifelse(irr_sub[21,3] > 0, 1, 
-                unlist(approx(irr_sub$NPV, irr_sub$Disc.Rate, 0))[2])
+                unlist(approx(irr_sub$NPV, irr_sub$Disc.Rate, 0))[2]) #approx fun iterates to find the 0 value
   colnames(IRR) <- "IRR"
   
-  dpi_sub <- subset(CashFlow, TCName == wellnames[n])
+  dpi_sub <- subset(CashFlow, TCName == wellnames[n]) #subset to link colnames with tc name
   DPI <- sum(dpi_sub$Disc.CF, na.rm = TRUE) / sum(dpi_sub$Disc.Capex, na.rm = TRUE) + 1  
   
-  brkEven_sub <- subset(CashFlowPrice, TCName == wellnames[n])
+  brkEven_sub <- subset(cashflow.price, TCName == wellnames[n]) #subset to link colnames with tc name
   BrkEven <- unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2])
   
   metrics <- data.frame(IRR, DPI, BrkEven)
@@ -246,7 +252,7 @@ xy[21,2]
 xy[21,3]
 
 
-brkEven_sub <- subset(CashFlowPrice, TCName == wellnames[n])
+brkEven_sub <- subset(cashflow.price, TCName == wellnames[n])
 BrkEven <- unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2])
 
 
