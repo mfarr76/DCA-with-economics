@@ -1,5 +1,7 @@
 rm(list = ls())
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")  
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
+
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("Updated_IHS.csv")
@@ -30,18 +32,19 @@ library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
 
-##"og_select" document property control allows the user to select OIL (1) or GAS (2) as the primary phase
-pPhase <- ifelse(og_select == 1, quote(Oil), quote(Gas)) 
+##"og_select" document property control allows the user to select OIL (5) or GAS (2) as the primary phase
+##the number convention will be used in the dca portion of the workflow
+pPhase <- ifelse(og_select == 5, quote(Oil), quote(Gas)) 
 
 ##filter and rename the production table
 input <- prod_tbl %>%
-  mutate(Time = as.POSIXct(as.Date(c.ProductionDate , "%m/%d/%Y"), 
+  mutate(Time = as.POSIXct(as.Date(D_DATE, "%m/%d/%Y"), 
                            origin = "1970-01-01", tz="UTC")) %>%
-  select(WellId = Entity,
+  select(WellId = `PROPNUM(1)`,
          Time,
-         Oil = Liquid, 
-         Gas = Gas, 
-         EffLat = PerfIntervalGross)
+         Oil = OIL, 
+         Gas = GAS, 
+         EffLat = EFF_LAT)
 
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(pPhase == "Oil")
@@ -68,16 +71,24 @@ if(nrow(input) < 1)
            Months = cumsum(RowCount), 
            Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
            Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-           CUMOil = cumsum(Oil1),
-           CUMGas = cumsum(Gas1)) %>% 
+           CUMOil1 = cumsum(Oil1),
+           CUMGas1 = cumsum(Gas1)) %>% 
     group_by(Months) %>%
     summarise(Gas = mean(Gas1), #mcf
-              GasP10 = quantile(Gas1, p = 0.90), 
-              GasP90 = quantile(Gas1, p = 0.10),
+              GasP10 = quantile(Gas1, p = 0.90), #mcf
+              GasP90 = quantile(Gas1, p = 0.10), #mcf
               Oil = mean(Oil1), #bbl
-              CUMGas = mean(CUMGas), #mcf
-              CUMOil = mean(CUMOil), #bbl
-              WellCount = sum(RowCount)) #sum up RowCount which will give you a wellcount column
+              OilP10 = quantile(Oil1, p = 0.90), #bbl 
+              OilP90 = quantile(Oil1, p = 0.10), #bbl
+              CUMGas = mean(CUMGas1) / 1000, #mmcf
+              CUMGasP10 = quantile(CUMGas1, p = 0.90) / 1000, #mmcf
+              CUMGASP90 = quantile(CUMGas1, p = 0.10) / 1000, #mmcf
+              CUMOil = mean(CUMOil1) / 1000, #mbo
+              CUMOilP10 = quantile(CUMOil1, p = 0.90) / 1000, #mbo,
+              CUMOilP90 = quantile(CUMOil1, p = 0.10) / 1000, #mbo,
+              WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
+    filter(WellCount > minWellcount)
+ 
   #######################
   
 }

@@ -2,8 +2,9 @@
 rm(list = ls())
 library(dplyr, warn.conflicts = FALSE)
 
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_Monthly_AT.RData")
 
 
 
