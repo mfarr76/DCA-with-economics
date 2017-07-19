@@ -3,7 +3,8 @@
 
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
 
 
@@ -40,6 +41,10 @@ qi <- max(slice(user_phase$Stream, 1:12), na.rm = TRUE)
 
 
 ##########
+##indexing row by name..can pick multiple rows with c("row1", "row2")http://www.r-tutor.com/r-introduction/data-frame/data-frame-row-slice
+##column indexing df[1] or df["colName"]
+##row indexing df[1,]   df[c("row1", "row2"),]
+
 #qi <- max(slice(test, 1:12), na.rm = TRUE)
 #ttp <- test %>% filter(OilP10 == qi) %>% select(Months)
 #names.df1 <- c("Months", "OilP10")
@@ -54,7 +59,7 @@ qi <- max(slice(user_phase$Stream, 1:12), na.rm = TRUE)
 
 ##find the IP from the Prop.IP column
 #qi <- max(tc_table$Prod.IP, na.rm = TRUE)
-
+### a.BU <- log(initial.rate / maxOil) / time.to.peak #find ai during BuildUp.then q/Np at the specific time
 
 
 b <- 1.1
@@ -73,11 +78,16 @@ abRate <- 150
 Di <- Di/100
 Dmin <- Dmin/100
 
-mnth_day_select <- 1
-time_unit <- ifelse(mnth_day_select == 1, 12, 365)
+###########################################################
+##the below is used if you want the option to select 
+#mnth_day_select <- 1
+#time_unit <- ifelse(mnth_day_select == 1, 12, 365)
 #t.units <- ifelse(TimeUnits == "Months", 12, 365) #change time units days/months
-total_time <- Years * time_unit #input from user on years * units
+#total_time <- Years * time_unit #input from user on years * units
+############################################################
+
 #time.to.peak <- tc_table$Months[which.max(tc_table$Prod.IP)]
+total.time <- Years * 12
 time.to.peak <- user_phase$Time[user_phase$Stream == qi]
 
 

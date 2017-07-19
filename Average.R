@@ -1,5 +1,5 @@
 rm(list = ls())
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
 
 #####not to load in spotfire

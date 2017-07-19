@@ -25,7 +25,7 @@ user_price <- cbind(gUser, oUser, nUser)
 
 
 tc_list <- list()
-for(i in 1:length(wellnames))
+for(i in seq_len(length(wellnames)))
 {
   tc_list[i] <- list(wellnames[i])
 }
@@ -89,11 +89,14 @@ y <- user_price
 z <- 1
 cf <- cshflow(1, user_price, 1)
 head(cf)
-
+TCGroups
+econTbl[12]
+ncol(econTbl)
+###
 
 
 cashflow <- data.frame()
-for(i in 1:length(wellnames)) #number of time to loop
+for(i in seq_len(wellnames)) #number of time to loop
 {
   cf1 <- cshflow(i, user_price, 1) #call cshflow function
   CashFlow1 <- rbind(CashFlow1, cf1) #store the results of each loop
@@ -136,7 +139,7 @@ price[2,2]
 
 
 cashflow.price <- data.frame()
-for(i in 1:length(wellnames)){
+for(i in seq_len(wellnames)){
   for(j in 1:nrow(price))
   {
     cf_price <- cshflow(i, price, j)
@@ -204,8 +207,8 @@ df %>%
   summarise(sum(Disc.CF))
 
 Cashflow.disc <- data.frame()
-for(i in 1:length(wellnames)){
-  for(j in 1:length(discRate))
+for(i in seq_len(wellnames)){
+  for(j in seq_len(discRate))
   {
     cf_dr <- cshflow_discount(i, j)
     cf_dr$Disc.Rate <- paste(as.numeric(discRate[j]))
