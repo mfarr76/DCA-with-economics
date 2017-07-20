@@ -4,7 +4,7 @@ library(dplyr)
 
 ###load for testing
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 #Average <- read.csv("average_nobu.csv", stringsAsFactors = FALSE)
 #econTbl <- read.csv("econTbl.csv", stringsAsFactors = FALSE)
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
@@ -17,7 +17,7 @@ Average.Monthly <- Average
 #colnames(curve_matrix) <- c("Gas", "Oil")
 #rownames(curve_matrix) <- c("Average", "P10", "P90")
 #user inputs 
-og_select <- 2
+og_select <- 5
 curve_select <- 0
 ##add the inputs together to get the column number to use in the average table
 cInput <- og_select + curve_select
@@ -25,13 +25,13 @@ cInput <- og_select + curve_select
 
 user.phase <- data.frame(
   month = as.numeric(Average.Monthly[[1]]), 
-  phase = as.numeric(Average.Monthly[[2]]))
+  phase = as.numeric(Average.Monthly[[cInput]]))
 
 
 mnth1.rate <- first(user.phase[[2]], 1)
 qi <- max(slice(user.phase[2], 1:12), na.rm = TRUE)
 time.to.peak <- user.phase$month[which.max(user.phase$phase)]
-
+#user.phase[2]
 
 ##############build up calculations...not finished.  can't seem to get the math right
 #a.bu <- log(mnth1.rate / qi) / time.to.peak #find ai during BuildUp.then q/Np at the specific time
@@ -64,17 +64,20 @@ years <- 30
 #di.ms <- di.ms/100
 ########################old parameters
 
-di <- di/100
-dmin <- dmin/100
-di.ms <- di.ms/100
+
+
 
 
 t.units <- 12
-ms <- 0 #multisegment forecast 1 = On 2 = Off
+ms <- 1 #multisegment forecast 1 = On 2 = Off
 abRate <- 150
 time.ms <- 10
 di.ms <- 10
 prod.time <- years * 12 #convert years to months
+
+di <- di/100
+dmin <- dmin/100
+di.ms <- di.ms/100
 
 a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
 t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
@@ -83,10 +86,6 @@ t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time
 DCA <- function(b, di, dmin, di.ms, years, time.ms)
 {
   
-
-  di <- di/100
-  dmin <- dmin/100
-  di.ms <- di.ms/100
 
 forecast.bu <- 
   if(time.to.peak > 1)
@@ -166,7 +165,7 @@ forecast.hyp <-
 }
 
 
-typecurve <- data.frame(DCA(1.1, 75, 10, 10, 30, 10)) %>%
+typecurve <- data.frame(DCA(b, di, dmin, di.ms, years, time.ms)) %>%
   mutate(rowcount = 1,
          Time = as.numeric(cumsum(rowcount))) %>%
   filter(Time <= prod.time &
@@ -184,9 +183,9 @@ if(nrow(Average.Monthly) == 1)
   
 }else{
   typecurve <- left_join(typecurve, YieldForecast, by = c("Time")) %>%
-    mutate(Gas.mcf = if(og_select == 1){primary/1000 * Secondary}else{primary}, #mcf
-           Oil.bbl = if(og_select == 1){primary}else{primary * Secondary/1000}, #bbl
-           Ratio = Secondary,
+    mutate(Gas.mcf = if(og_select == 5){primary/1000 * secondary}else{primary}, #mcf
+           Oil.bbl = if(og_select == 5){primary}else{primary * secondary/1000}, #bbl
+           Ratio = secondary,
            cumGas.mmcf = cumsum(Gas.mcf)/1000, #mmcf
            cumOil.mbo = cumsum(Oil.bbl)/1000) %>% #mbo 
     select(Time, 

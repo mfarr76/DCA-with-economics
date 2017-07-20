@@ -3,8 +3,8 @@ rm(list = ls())
 library(dplyr, warn.conflicts = FALSE)
 
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_Monthly_AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_Monthly_AT.RData")
 
 
 
@@ -66,17 +66,15 @@ CUMtc <- TypeCurve %>%
 TC.Cums <- bind_rows(CUMprod, CUMtc)
 
 ##create a table for typecurve documenting purposes...create a record
-TypeWells <- prod_tbl %>%
-  filter(c.Months == 1 ) %>%
+TCWellList <- wellheader %>%
   mutate(Name = CurveName,
-         Lat.Length = PerfIntervalGross,
-         API = PrimaryWellAPI,
+         Norm.Lat.Length = NormalizedLateralLength,
          Lbs.Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl.Ft = (FluidAmountTotal/42) / PerfIntervalGross,
-         Norm.Lat.Length = NormalizedLateralLength,
          TC.qi = qi, TC.b = b, TC.Di = Di, TC.Dmin = Dmin, TC.Years = Years) %>%
-  select(Name, API, Lat.Length, Lbs.Ft, Bbl.Ft,
-         Norm.Lat.Length, TC.qi, TC.b, TC.Di, TC.Dmin, TC.Years)
+  select(Name, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
+         Lbs.Ft, Bbl.Ft, Norm.Lat.Length, Spacing.Avg, Max.Infill.Time,
+         TC.qi, TC.b, TC.Di, TC.Dmin, TC.Years)
 
 
 TimeStamp=paste(date(),Sys.timezone())

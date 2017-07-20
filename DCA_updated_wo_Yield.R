@@ -4,14 +4,14 @@
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
-
+write.csv(Average, file = "avg.csv")
 
 
 
 library(dplyr, warn.conflicts = FALSE)
-
+Average.Monthly <- Average
 
 ##og_select & curve_select will have numerical values that when added together, will give you the column number to retrieve
 ##from the average table.  the curve matrix will show how the numbers tie to which stream to pull from the average table
@@ -33,9 +33,15 @@ cInput <- og_select + curve_select
 ##use Select Phase_docProp to allow the user to select OIL (1) or GAS (2) as the primary phase
 #tc_table$pPhase <- if(og_select == 1){Average.Monthly$Oil} else {Average.Monthly$Gas}
 
+if(nrow(Average.Monthly) > 1){
+  user.phase <- data.frame(
+    #month = ifelse(nrow(Average.Monthly) > 1, as.numeric(Average.Monthly[[1]]), 0),  
+    month = as.numeric(Average.Monthly[[1]]),
+    phase = as.numeric(Average.Monthly[[cInput]]))
+}else{
+  user.phase <- data.frame(month = c(0), phase = c(0))
+}
 
-user_phase <- data.frame(Time = 1:nrow(Average.Monthly))
-user_phase$Stream <- data.frame(Average.Monthly[cInput])
 qi <- max(slice(user_phase$Stream, 1:12), na.rm = TRUE)
 
 
@@ -89,14 +95,11 @@ Dmin <- Dmin/100
 #time.to.peak <- tc_table$Months[which.max(tc_table$Prod.IP)]
 total.time <- Years * 12
 time.to.peak <- user_phase$Time[user_phase$Stream == qi]
-
-
-
-time_wBU <- total_time - time.to.peak
+time_wBU <- total.time - time.to.peak
 prod_time1 <- seq_along(1:time_wBU)
 prod_time2 <- prod_time1 - 1
 a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
-timeTrans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * time_unit) #time to transition to Dmin...leave in this nominclature for spotfire
+timeTrans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * 12) #time to transition to Dmin...leave in this nominclature for spotfire
 
 
 
@@ -167,7 +170,10 @@ DCA <- function(qi, Di, b, Dmin, Years)
   
 }
 
-TypeCurve <- data.frame(Time = seq(1:total_time), 
+
+
+
+TypeCurve <- data.frame(Time = seq(1:total.time), 
                           DCA(qi, Di, b, Dmin, Years))
 
 
@@ -195,7 +201,7 @@ if(nrow(Average.Monthly) == 1)
                    
 if(nrow(Average.Monthly) == 1)
 {
-  TypeCurve <- data.frame(CumGas12MO.mmcf = c(0), CUMOil12MO.mbo = c(0), GasEUR.mmcf = c(0),
+  forecast.table <- data.frame(CumGas12MO.mmcf = c(0), CUMOil12MO.mbo = c(0), GasEUR.mmcf = c(0),
                           OilEUR.mbo = c(0), TotalEUR.mboe = c(0))
 }else{
 
