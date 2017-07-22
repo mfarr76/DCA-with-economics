@@ -254,6 +254,7 @@ CF.Metrics <- function(n){
   Capex <- max(dpi.sub$NetDiscCapex, na.rm = TRUE);
   FnD <-  max(dpi.sub$NetDiscCapex, na.rm = TRUE) / sum(dpi.sub$NetBOE, na.rm = TRUE);
   Lifting.Cost <- sum(dpi.sub$NetOpex, na.rm = TRUE) / sum(dpi.sub$NetBOE, na.rm = TRUE);
+  NPV15 <- max(dpi.sub$NetCumDiscCF, na.rm = TRUE);
   
   
   brkEven.sub <- subset(CashFlowPrice, TCName == wellnames[n]); #subset to link colnames with tc name
@@ -262,7 +263,7 @@ CF.Metrics <- function(n){
   
   
   
-  metrics <- data.frame(EUR.MBOE, IRR, DPI, BrkEven, Payout.disc, FnD, Lifting.Cost)
+  metrics <- data.frame(EUR.MBOE, NPV15 ,IRR, DPI, BrkEven, Payout.disc, FnD, Lifting.Cost)
   
   return(metrics)
 }

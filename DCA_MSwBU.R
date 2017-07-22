@@ -12,26 +12,56 @@ Average.Monthly <- Average
 
 #write.csv(Average, file = "average.csv")
 
+b <- 1.1
+di <- 82
+dmin <- 8
+years <- 30
+
+t.units <- 12
+ms <- 1 #multisegment forecast 1 = On 2 = Off
+abRate <- 150
+time.ms <- 3
+di.ms <- 90
+prod.time <- years * 12 #convert years to months
+t.exp.har <- seq_len(prod.time) #time units for exp and har declines
+t.exp.har1 <- t.exp.har - 1 #time units for exp and har declines
+
+
+di <- di/100
+dmin <- dmin/100
+di.ms <- di.ms/100
+
+
+
+
 ##############table structure is demostrated below
 #curve_matrix <- matrix(2:7,3,2)
 #colnames(curve_matrix) <- c("Gas", "Oil")
 #rownames(curve_matrix) <- c("Average", "P10", "P90")
 #user inputs 
-og_select <- 5
+og_select <- 2
 curve_select <- 0
 ##add the inputs together to get the column number to use in the average table
 cInput <- og_select + curve_select
 ##############table structure
 
-user.phase <- data.frame(
-  month = as.numeric(Average.Monthly[[1]]), 
-  phase = as.numeric(Average.Monthly[[cInput]]))
+if(nrow(Average.Monthly) > 1){
+  user.phase <- data.frame(
+    #month = ifelse(nrow(Average.Monthly) > 1, as.numeric(Average.Monthly[[1]]), 0),  
+    month = as.numeric(Average.Monthly[[1]]),
+    phase = as.numeric(Average.Monthly[[cInput]]))
+}else{
+  user.phase <- data.frame(month = c(0), phase = c(0))
+}
 
 
+
+t.units <- 12
 mnth1.rate <- first(user.phase[[2]], 1)
 qi <- max(slice(user.phase[2], 1:12), na.rm = TRUE)
 time.to.peak <- user.phase$month[which.max(user.phase$phase)]
-#user.phase[2]
+a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
+t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
 
 ##############build up calculations...not finished.  can't seem to get the math right
 #a.bu <- log(mnth1.rate / qi) / time.to.peak #find ai during BuildUp.then q/Np at the specific time
@@ -48,10 +78,10 @@ time.to.peak <- user.phase$month[which.max(user.phase$phase)]
 
 ########################old parameters
 #qi <- 100000
-b <- 1.1
-di <- 75
-dmin <- 10
-years <- 30
+#b <- 1.1
+#di <- 75
+#dmin <- 10
+#years <- 30
 #Day.Month = "Months"
 #t.units <- ifelse(Day.Month == "Months", 12, 365)
 #prod.time <- forecast.years * t.units
@@ -64,42 +94,38 @@ years <- 30
 #di.ms <- di.ms/100
 ########################old parameters
 
+##----------------DCA function notes------------
+######forecast.bu 
+#calc the buildup rate (if any). right now, the code just copies the rates to time.to.peak
+#further work is need to iterate on what the qi and decline would need to be to generate the monthly volumes
 
+######forecast.exp
+#takes the peak volume and back calc the qi need to produce the peak volumes reported (qi.bu) at a given ai.ms
+#time start at month 2 as not to duplicate month 1 from forecast.bu
 
-
-
-t.units <- 12
-ms <- 1 #multisegment forecast 1 = On 2 = Off
-abRate <- 150
-time.ms <- 10
-di.ms <- 10
-prod.time <- years * 12 #convert years to months
-
-di <- di/100
-dmin <- dmin/100
-di.ms <- di.ms/100
-
-a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
-t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
+######forecast.hyp
+#if b == 0 or 1 then step 1 is to calc ai then back calc the qi needed to generate month 1 volume bc that number 
+#will always be month 1 bc forecast.bu is setup to return the volumes for time.to.peak
+#if you use month 1 volume as qi then your forecast will be low
 
 
 DCA <- function(b, di, dmin, di.ms, years, time.ms)
 {
-  
 
 forecast.bu <- 
   if(time.to.peak > 1)
   {
-    user.phase$phase[1:time.to.peak]
+      time.to.peak1 <- time.to.peak - 1
+      user.phase$phase[1:time.to.peak1]
   }
-
+  
 
 forecast.exp <-
-    if(ms == 1)
+  if(ms == 1)
       { #multi.segment forecast = ms
-      t.ms <- 2:time.ms
+      t.ms <- seq_len(time.ms)
       t.ms2 <- t.ms - 1
-      ai.ms <- -log(1-di.ms)/t.units
+      ai.ms <- -log(1 - di.ms) / t.units
       qi.bu <- qi/(1 - exp(-ai.ms*1))*ai.ms ##qi back calc from di.ms and qi from average tbl
       Exp.Np1.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms))
       Exp.Np2.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms2))
@@ -110,67 +136,80 @@ forecast.exp <-
       qi <- qi * exp(-ai.ms * time.ms)
       exp.ms
       }  
-#c(rate.bu, exp.ms)
+      #c(forecast.bu, exp.ms)
 
 forecast.hyp <- 
   if(b == 0){
 
-  ai <- -log(1-di)/t.units
-  Exp.Np1 <- qi / ai * (1 - exp(-ai * t))
-  Exp.Np2 <- qi / ai * (1 - exp(-ai * t2))
+      ai.exp <- -log( 1 - di ) / t.units
+      qi.exp <- (qi * ai.exp) / (log(1 + ai.exp))
+      Exp.Np1 <- qi.exp / ai.exp * (1 - exp(-ai.exp * (t.exp.har)))
+      Exp.Np2 <- qi.exp / ai.exp * (1 - exp(-ai.exp * (t.exp.har1)))
     
-  #exp <- data.frame(time = t.exp, prod.vol = Exp.Np1 - Exp.Np2)
-  Exp.Np1 - Exp.Np2
+      #exp <- data.frame(time = t.exp, prod.vol = Exp.Np1 - Exp.Np2)
+      Exp.Np1 - Exp.Np2
   
   }else if(b == 1){
+      
+      ai.har <- (di / (1 - di) / t.units)
+      qi.har <- (qi * ai.har) / (log(1 + ai.har))
+      Har.Np1 <- qi.har / ai.har * log(1 + ai.har * (t.exp.har))
+      Har.Np2 <- qi.har / ai.har * log(1 + ai.har * (t.exp.har1))
     
-    ai <- (di / (1 - di) / t.units)
-    Har.Np1 <- qi / ai * log(1 + ai * t)
-    Har.Np2 <- qi / ai * log(1 + ai * t2)
-    
-    Har.Np1 - Har.Np2
+      Har.Np1 - Har.Np2
 
-    
   }else{
     
-    ###############Hyperbolic - b value is not 0 or 1
-    #determine parameters for dmin
-    ai <- (1 / (t.units * b))*((1 - di)^- b-1) #nominal deline per time units 
-    a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
-    t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
-    t.trans.seq <- seq(1:t.trans)
-    t.trans.seq2 <- t.trans.seq - 1
+      ai.hyp <- (1 / (t.units * b))*((1 - di)^- b-1) #nominal deline per time units 
+      a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
+      #part1 <- qi * ai * (1 - b)
+      #part2 <- 1 - 1 / (1 + ai * b)^((1 - b)/b)
+      #part3 <- part1/part2
+      qi.hyp <- (qi * ai.hyp * (1 - b)) / (1 - 1 / (1 + ai.hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
     
-    ###########forecast to dmin################
-    Hyp.Np.todmin1 <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b *  t.trans.seq)^((1 - b) / b))))
-    Hyp.Np.todmin2 <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b *  t.trans.seq2)^((1 - b) / b))))
-    Hyp.Npdmin <- Hyp.Np.todmin1  - Hyp.Np.todmin2
+      ###############Hyperbolic - b value is not 0 or 1
+      #determine parameters for dmin
+      t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
+      t.trans.seq <- seq(1:t.trans)
+      t.trans.seq2 <- t.trans.seq - 1
     
-    ##########forecast expontintal to end of forecast years (Terminal decline portion of the curve)#########
-    admin <- -log(1 - dmin)/t.units
-    q.trans <- qi / ((1 + b * ai * t.trans))^(1 / b) #rate at transition month 
-    Np.trans <- (qi / (( 1 - b) * ai)) * (1-(1/((1 + ai * b * t.trans)^((1 - b) / b)))) #cum volume at tranistion month
-    t.exp.final <- seq(1:(prod.time - t.trans))
-    t.exp.final1 <- 0:(prod.time - t.trans - 1)
+      ###########forecast to dmin################
+      Hyp.Np.todmin1 <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq)^((1 - b) / b))))
+      Hyp.Np.todmin2 <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq2)^((1 - b) / b))))
+      Hyp.Npdmin <- Hyp.Np.todmin1  - Hyp.Np.todmin2
     
-    #########forecast from dmin to end of forecast
-    Exp.Np1 <- Np.trans + q.trans / admin * (1 - exp(-admin * t.exp.final))
-    Exp.Np2 <- Np.trans + q.trans / admin * (1 - exp(-admin * t.exp.final1))
-    Exp.Np <- Exp.Np1 - Exp.Np2
+      ##########forecast expontintal to end of forecast years (Terminal decline portion of the curve)#########
+      admin <- -log(1 - dmin)/t.units
+      q.trans <- qi.hyp / ((1 + b * ai.hyp * t.trans))^(1 / b) #rate at transition month 
+      Np.trans <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b * t.trans)^((1 - b) / b)))) #cum volume at tranistion month
+      t.exp.final <- seq(1:(prod.time - t.trans))
+      t.exp.final1 <- 0:(prod.time - t.trans - 1)
     
-    c(Hyp.Npdmin, Exp.Np)
+      #########forecast from dmin to end of forecast
+      Exp.Np1 <- Np.trans + q.trans / admin * (1 - exp(-admin * t.exp.final))
+      Exp.Np2 <- Np.trans + q.trans / admin * (1 - exp(-admin * t.exp.final1))
+      Exp.Np <- Exp.Np1 - Exp.Np2
+    
+      c(Hyp.Npdmin, Exp.Np)
 
   } 
-  data.frame(primary = c(forecast.bu, forecast.exp, forecast.hyp))
+      data.frame(primary = c(forecast.bu, forecast.exp, forecast.hyp))
 }
 
-
-typecurve <- data.frame(DCA(b, di, dmin, di.ms, years, time.ms)) %>%
-  mutate(rowcount = 1,
-         Time = as.numeric(cumsum(rowcount))) %>%
-  filter(Time <= prod.time &
-           primary > abRate)  %>%
-  select(Time, primary)
+if(nrow(Average.Monthly) == 1)
+{
+  typecurve <- data.frame(Time = c(0), primary = 0)
+  
+}else{
+  
+  typecurve <- data.frame(DCA(b, di, dmin, di.ms, years, time.ms)) %>%
+    mutate(rowcount = 1,
+           Time = as.numeric(cumsum(rowcount))) %>%
+    filter(Time <= prod.time &
+             primary > abRate)  %>%
+    select(Time, primary)
+}  
+write.csv(typecurve, file = "typecurve.csv")
 
 
 #--------------------------------------------------------------------------------

@@ -25,7 +25,8 @@ TC.Lbs.Ft <- 1500
 
 
 #Typecurve name
-CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
+#CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
+CurveName <- paste(TC.Name)
 
 prod_tbl <- production %>%
   
@@ -72,7 +73,7 @@ TCWellList <- wellheader %>%
          Lbs.Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl.Ft = (FluidAmountTotal/42) / PerfIntervalGross,
          TC.qi = qi, TC.b = b, TC.Di = Di, TC.Dmin = Dmin, TC.Years = Years) %>%
-  select(Name, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
+  select(Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
          Lbs.Ft, Bbl.Ft, Norm.Lat.Length, Spacing.Avg, Max.Infill.Time,
          TC.qi, TC.b, TC.Di, TC.Dmin, TC.Years)
 

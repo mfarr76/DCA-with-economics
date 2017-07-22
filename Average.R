@@ -1,10 +1,10 @@
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #####not to load in spotfire
 og_select <- 1
-prod_tbl <- read.csv("Updated_IHS.csv")
+#prod_tbl <- read.csv("Updated_IHS.csv")
 
 min_lat <- 1000
 normal_lat <- 5000
@@ -40,7 +40,7 @@ pPhase <- ifelse(og_select == 5, quote(Oil), quote(Gas))
 input <- prod_tbl %>%
   mutate(Time = as.POSIXct(as.Date(D_DATE, "%m/%d/%Y"), 
                            origin = "1970-01-01", tz="UTC")) %>%
-  select(WellId = `PROPNUM(1)`,
+  select(WellId = Entity,
          Time,
          Oil = OIL, 
          Gas = GAS, 
@@ -57,13 +57,13 @@ if(pPhase == "Oil")
 ####create table called Average to house the data used for DCA
 if(nrow(input) < 1)
 {#in no wells are selected, create an Average table with zeros 
-  Average <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
+  Average.Monthly <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
                         Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0), 
                         CUMGas = c(0), CUMOil = c(0))
 }else{
   
   ##################dplyr package used for data wrangling
-  Average <- input %>%
+  Average.Monthly <- input %>%
     arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
@@ -86,6 +86,12 @@ if(nrow(input) < 1)
               CUMOil = mean(CUMOil1) / 1000, #mbo
               CUMOilP10 = quantile(CUMOil1, p = 0.90) / 1000, #mbo,
               CUMOilP90 = quantile(CUMOil1, p = 0.10) / 1000, #mbo,
+              Yield = Oil / (Gas / 1000), #bbl/mmcf
+              YieldP10 = OilP10 / (GasP10 / 1000), #bbl/mmcf 
+              YieldP90 = OilP90 / (GasP90 / 1000), #bbl/mmcf
+              GOR = Gas / (Oil / 1000),  #scf/bbl
+              GORP10 = GasP10 / (OilP10 / 1000), #scf/bbl 
+              GORP90 = GasP90 / (OilP90 / 1000), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount)
  
