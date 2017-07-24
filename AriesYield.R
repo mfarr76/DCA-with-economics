@@ -1,10 +1,10 @@
 rm(list = ls())
-forecast.years <- 20
+forecast.years <- 30
 #forecast.time <- 20*12
 time.1 <- 10
 yield.1 <- 1000
-yield.2 <- 2000
-yield.3 <- 5000
+yield.2 <- 2400
+yield.3 <- 2700
 mnth_day_select <- 1
 og_select <- 1
 

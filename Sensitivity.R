@@ -3,18 +3,21 @@ rm(list = ls())
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/econtbl.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
+
 
 library(dplyr)
 library(purrr)
 ###########-------------------------------------------
 
 ###cashflow - F11 output 
-TCGroups <- tcgroup
+#TCGroups <- tcgroup
 econTbl <- EconTable
-wellnames <- unique(TCGroups$tcName[!is.na(TCGroups$tcName)])
+tcName <- unique(TCGroups$tcName[!is.na(TCGroups$tcName)])
 
 #wellnames <- unique(TCGroups$Name)
 
+unique(TCGroups$tcName)
 
 
 
@@ -26,9 +29,9 @@ user_price <- cbind(gUser, oUser, nUser)
 
 
 tc_list <- list()
-for(i in seq_len(length(wellnames)))
+for(i in seq_along(tcName))
 {
-  tc_list[i] <- list(wellnames[i])
+  tc_list[i] <- list(tcName[i])
 }
 capex_mnth <- 1
 #inputs <- userinputs[1, 1:ncol(userinputs)]
@@ -38,7 +41,7 @@ inputs[2,1]
 
 red_tc <- subset(TCGroups, Name == tc_list[1])
 
-red_inputs <- subset(inputs, wellname == tc_list[1])
+red_inputs <- subset(inputs, tcName == tc_list[1])
 
 
 
@@ -58,7 +61,7 @@ cshflow <- function(x, y, z)
   red_tc <- subset(TCGroups, tcName == tc_list[x]); #reduce/filter the typecurves one at a time 
   red_inputs <- subset(econTbl, tcName == tc_list[x]);
   #TCnamd and date
-  TCName = red_tc$tcName;
+  tcName = red_tc$tcName;
   Time <-  as.numeric(red_tc$Time);
   
   #gross prd
@@ -90,7 +93,7 @@ cshflow <- function(x, y, z)
   NetDiscCF <- as.numeric(NetOpIncome *(1/(1 + red_inputs$discount.rate)^((Time - 0.5) / 12)) - NetDiscCapex);
   NetCumDiscCF <- cumsum(NetDiscCF);
   
-  results <- data.frame(TCName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, GRBOE.bbl, NetDryGas.mcf, NetOil.bbl, NetNGL.bbl,
+  results <- data.frame(tcName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, GRBOE.bbl, NetDryGas.mcf, NetOil.bbl, NetNGL.bbl,
                         NetBOE, NetGasRev, NetOilRev, NetNGLRev, NetRev, NetOpex ,NetOpIncome, NetUndiscCF, NetDiscCapex, NetDiscCF, NetCumDiscCF)
   
   results_cshflow <- filter(results, NetOpIncome > 0) #stop reporting when income does negative....LOSS ZERO
@@ -100,7 +103,7 @@ cshflow <- function(x, y, z)
 }
 
 ###testing 
-cshflow(3, user_price, 1)
+cshflow(1, user_price, 1)
 
 x <-1
 y <- user_price
@@ -114,7 +117,7 @@ ncol(econTbl)
 
 
 CashFlow <- data.frame()
-for(i in seq_len(length(wellnames))) #number of time to loop
+for(i in seq_along(tcName)) #number of time to loop
 {
   cf1 <- cshflow(i, user_price, 1) #call cshflow function
   CashFlow <- rbind(CashFlow , cf1) #store the results of each loop
@@ -154,10 +157,9 @@ price[2,2]
 #price sensitivity
 
 
-seq_along(wellnames)
 
 CashFlowPrice <- data.frame()
-for(i in seq_along(wellnames)){
+for(i in seq_along(tcName)){
   for(j in 1:nrow(price))
   {
     cf_price <- cshflow(i, price, j)
@@ -173,9 +175,9 @@ price[8,1]
 rm(cashflow.price)
 
 CashFlowPrice <- CashFlowPrice %>% 
-  group_by(TCName, scenario) %>% 
+  group_by(tcName, scenario) %>% 
   summarise(NPV = max(NetCumDiscCF), Price = mean(price)) %>%
-  arrange(TCName, Price)
+  arrange(tcName, Price)
 
 
 
@@ -221,7 +223,7 @@ df %>%
   summarise(sum(NetDiscCF))
 
 CashFlowDisc <- data.frame()
-for(i in seq_along(wellnames)){
+for(i in seq_along(tcName)){
   for(j in seq_along(discRate))
   {
     cf_dr <- cshflow_discount(i, j)
@@ -233,21 +235,21 @@ for(i in seq_along(wellnames)){
 
 CashFlowDisc <- CashFlowDisc %>%
   mutate(Disc.Rate = as.numeric(Disc.Rate)) %>%
-  group_by(TCName, Disc.Rate) %>%
+  group_by(tcName, Disc.Rate) %>%
   summarise(NPV = sum(NetDiscCF))
 
-
+rm(n)
 n <- 1
 
 
 CF.Metrics <- function(n){
   
-  irr.sub <- subset(CashFlowDisc, TCName == wellnames[n]); #subset to link colnames with tc name
+  irr.sub <- subset(CashFlowDisc, tcName == tc_list[n]); #subset to link colnames with tc name
   IRR <- ifelse(irr.sub[21,3] > 0, 1, 
                 unlist(approx(irr.sub$NPV, irr.sub$Disc.Rate, 0))[2]); #approx fun iterates to find the 0 value
   colnames(IRR) <- "IRR" ;
   
-  dpi.sub <- subset(CashFlow, TCName == wellnames[n]); #subset to link colnames with tc name
+  dpi.sub <- subset(CashFlow, tcName == tc_list[n]); #subset to link colnames with tc name
   DPI <- sum(dpi.sub$NetDiscCF, na.rm = TRUE) / sum(dpi.sub$NetDiscCapex, na.rm = TRUE) + 1; 
   Payout.disc <- unlist(approx(dpi.sub$NetCumDiscCF, dpi.sub$Time, 0))[2];
   EUR.MBOE <- sum(dpi.sub$GRBOE.bbl, na.rm = TRUE) / 1000;
@@ -257,7 +259,7 @@ CF.Metrics <- function(n){
   NPV15 <- max(dpi.sub$NetCumDiscCF, na.rm = TRUE);
   
   
-  brkEven.sub <- subset(CashFlowPrice, TCName == wellnames[n]); #subset to link colnames with tc name
+  brkEven.sub <- subset(CashFlowPrice, tcName == tc_list[n]); #subset to link colnames with tc name
   BrkEven <- unlist(approx(brkEven.sub$NPV, brkEven.sub$Price, 0)[2]);
   
   
@@ -267,9 +269,7 @@ CF.Metrics <- function(n){
   
   return(metrics)
 }
+tcNames <- wellnames
 
-
-Econ_Metrics <- data.frame(wellnames, map_df(1:length(wellnames), CF.Metrics))
-
-
+Econ_Metrics <- data.frame(tcName, map_df(seq_along(tc_list), CF.Metrics))
 
