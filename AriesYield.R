@@ -12,6 +12,37 @@ time.units <- ifelse(mnth_day_select == 1, 12, 365)
 forecast.time <- forecast.years * time.units
 
 
+
+y.inc <- (yield.2 - yield.1)/time.1
+
+y.inc2 <- c(y.inc/2, rep(140, times = (time.1-1)))
+
+y.inc2
+rm(y2)
+
+y1 <- yield.1 + y.inc2[1]
+y2 <- y1 + y.inc2[2]
+y3 <- y2 + y.inc2[3]
+i <- 2
+
+y.fun <- function(x, y)
+
+i <- 2
+
+y1 <- vector("double", 11)
+for(i in 1:11){
+  if(i == 1){y1 <- yield.1 + y.inc2[1]
+  }else{
+    y1[i] <- y1[i-1] + y.inc2[i]
+  }
+}
+y1
+
+
+
+length(y1)
+
+
 aries_yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
 {
 
