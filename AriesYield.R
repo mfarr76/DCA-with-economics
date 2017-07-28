@@ -1,46 +1,16 @@
 rm(list = ls())
 forecast.years <- 30
-#forecast.time <- 20*12
-time.1 <- 10
-yield.1 <- 1000
-yield.2 <- 2400
-yield.3 <- 2700
+forecast.time <- 30*12
+time.1 <- 4
+yield.1 <- 900
+yield.2 <- 3400
+yield.3 <- 3400
 mnth_day_select <- 1
 og_select <- 1
 
 time.units <- ifelse(mnth_day_select == 1, 12, 365)
 forecast.time <- forecast.years * time.units
 
-
-
-y.inc <- (yield.2 - yield.1)/time.1
-
-y.inc2 <- c(y.inc/2, rep(140, times = (time.1-1)))
-
-y.inc2
-rm(y2)
-
-y1 <- yield.1 + y.inc2[1]
-y2 <- y1 + y.inc2[2]
-y3 <- y2 + y.inc2[3]
-i <- 2
-
-y.fun <- function(x, y)
-
-i <- 2
-
-y1 <- vector("double", 11)
-for(i in 1:11){
-  if(i == 1){y1 <- yield.1 + y.inc2[1]
-  }else{
-    y1[i] <- y1[i-1] + y.inc2[i]
-  }
-}
-y1
-
-
-
-length(y1)
 
 
 aries_yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
@@ -92,5 +62,39 @@ aries_yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
 
 
 YieldForecast <- data.frame(Time = seq_along(1:forecast.time), Secondary = aries_yield(forecast.time, time.1, yield.1, yield.2, yield.3))
+
+
+
+
+
+
+y.inc <- (yield.2 - yield.1)/time.1
+
+y.inc2 <- c(y.inc/2, rep(140, times = (time.1-1)))
+
+y.inc2
+rm(y2)
+
+y1 <- yield.1 + y.inc2[1]
+y2 <- y1 + y.inc2[2]
+y3 <- y2 + y.inc2[3]
+i <- 2
+
+y.fun <- function(x, y)
+  
+  i <- 2
+
+y1 <- vector("double", 11)
+for(i in 1:11){
+  if(i == 1){y1 <- yield.1 + y.inc2[1]
+  }else{
+    y1[i] <- y1[i-1] + y.inc2[i]
+  }
+}
+y1
+
+
+
+length(y1)
 
  
