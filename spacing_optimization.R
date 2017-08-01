@@ -36,7 +36,8 @@ spac_tbl$tcName <- as.character(spac_tbl$tcName)
 
 DSU <- left_join(spac_tbl, EconMetrics, by = "tcName") %>%
   mutate(EUR.SpacingUnit.MBOE = WellsPerUnit * EUR.MBOE, 
-         PV15.SpacingUnit = NPV15 * WellsPerUnit)
+         PV15.SpacingUnit = NPV15 * WellsPerUnit, 
+         Capex.SpacingUnit = Capex * WellPerUnit)
 
 
 clrTbl <- 1

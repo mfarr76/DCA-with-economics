@@ -2,6 +2,8 @@ rm(list = ls())
 library(dplyr)
 
 
+
+
 ###load for testing
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
@@ -60,6 +62,8 @@ t.units <- 12
 mnth1.rate <- first(user.phase[[2]], 1)
 qi <- max(slice(user.phase[2], 1:12), na.rm = TRUE)
 time.to.peak <- user.phase$month[which.max(user.phase$phase)]
+
+
 a.yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
 t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
 
@@ -130,10 +134,11 @@ forecast.exp <-
       Exp.Np1.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms))
       Exp.Np2.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms2))
       exp.ms <- Exp.Np1.ms - Exp.Np2.ms
+      
   
       #t <- seq(time.ms, prod.time)
       #t2 <- t - 1
-      qi <- qi * exp(-ai.ms * time.ms)
+      qi <- qi.bu * exp(-ai.ms * (time.ms))
       exp.ms
       }  
       #c(forecast.bu, exp.ms)
@@ -142,9 +147,10 @@ forecast.hyp <-
   if(b == 0){
 
       ai.exp <- -log( 1 - di ) / t.units
-      qi.exp <- (qi * ai.exp) / (log(1 + ai.exp))
-      Exp.Np1 <- qi.exp / ai.exp * (1 - exp(-ai.exp * (t.exp.har)))
-      Exp.Np2 <- qi.exp / ai.exp * (1 - exp(-ai.exp * (t.exp.har1)))
+      if(ms == 2){qi <- (qi * ai.exp) / (log(1 + ai.exp))}
+      
+      Exp.Np1 <- qi / ai.exp * (1 - exp(-ai.exp * (t.exp.har)))
+      Exp.Np2 <- qi / ai.exp * (1 - exp(-ai.exp * (t.exp.har1)))
     
       #exp <- data.frame(time = t.exp, prod.vol = Exp.Np1 - Exp.Np2)
       Exp.Np1 - Exp.Np2
@@ -152,9 +158,11 @@ forecast.hyp <-
   }else if(b == 1){
       
       ai.har <- (di / (1 - di) / t.units)
-      qi.har <- (qi * ai.har) / (log(1 + ai.har))
-      Har.Np1 <- qi.har / ai.har * log(1 + ai.har * (t.exp.har))
-      Har.Np2 <- qi.har / ai.har * log(1 + ai.har * (t.exp.har1))
+      
+      if(ms == 2){qi <- (qi * ai.har) / (log(1 + ai.har))}
+      
+      Har.Np1 <- qi / ai.har * log(1 + ai.har * (t.exp.har))
+      Har.Np2 <- qi / ai.har * log(1 + ai.har * (t.exp.har1))
     
       Har.Np1 - Har.Np2
 
@@ -165,8 +173,9 @@ forecast.hyp <-
       #part1 <- qi * ai * (1 - b)
       #part2 <- 1 - 1 / (1 + ai * b)^((1 - b)/b)
       #part3 <- part1/part2
-      qi.hyp <- (qi * ai.hyp * (1 - b)) / (1 - 1 / (1 + ai.hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
-    
+      if(ms == 2)
+        {qi <- (qi * ai.hyp * (1 - b)) / (1 - 1 / (1 + ai.hyp * b)^((1 - b)/b))} #back calc qi based on Np (month 1)
+      
       ###############Hyperbolic - b value is not 0 or 1
       #determine parameters for dmin
       t.trans <- ceiling(( a.yr / ( -log (1 - dmin)) - 1)/( a.yr * b) * t.units) #time to reach dmin
@@ -174,14 +183,14 @@ forecast.hyp <-
       t.trans.seq2 <- t.trans.seq - 1
     
       ###########forecast to dmin################
-      Hyp.Np.todmin1 <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq)^((1 - b) / b))))
-      Hyp.Np.todmin2 <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq2)^((1 - b) / b))))
+      Hyp.Np.todmin1 <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq)^((1 - b) / b))))
+      Hyp.Np.todmin2 <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq2)^((1 - b) / b))))
       Hyp.Npdmin <- Hyp.Np.todmin1  - Hyp.Np.todmin2
     
       ##########forecast expontintal to end of forecast years (Terminal decline portion of the curve)#########
       admin <- -log(1 - dmin)/t.units
-      q.trans <- qi.hyp / ((1 + b * ai.hyp * t.trans))^(1 / b) #rate at transition month 
-      Np.trans <- (qi.hyp / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b * t.trans)^((1 - b) / b)))) #cum volume at tranistion month
+      q.trans <- qi / ((1 + b * ai.hyp * t.trans))^(1 / b) #rate at transition month 
+      Np.trans <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b * t.trans)^((1 - b) / b)))) #cum volume at tranistion month
       t.exp.final <- seq(1:(prod.time - t.trans))
       t.exp.final1 <- 0:(prod.time - t.trans - 1)
     

@@ -97,7 +97,7 @@ cshflow <- function(table, x, y, z)
   NetDiscCF <- as.numeric(NetOpIncome *(1/(1 + red_inputs$discount.rate)^((Time - 0.5) / 12)) - NetDiscCapex);
   NetCumDiscCF <- cumsum(NetDiscCF);
   
-  results <- data.frame(tcName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, GRBOE.bbl, NetDryGas.mcf, NetOil.bbl, NetNGL.bbl,
+  results <- data.frame(tcName, Time, GRGas.mcf, GROil.bbl, GRNgl.bbl, GRBOE, NetDryGas.mcf, NetOil.bbl, NetNGL.bbl,
                         NetBOE, NetGasRev, NetOilRev, NetNGLRev, NetRev, NetOpex ,NetOpIncome, NetUndiscCF, NetDiscCapex, NetDiscCF, NetCumDiscCF)
   
   results_cshflow <- filter(results, NetOpIncome > 0) #stop reporting when income does negative....LOSS ZERO
@@ -258,9 +258,9 @@ CF.Metrics <- function(n){
   
   dpi.sub <- subset(CashFlow, tcName == tc_list[n]); #subset to link colnames with tc name
   DPI <- sum(dpi.sub$NetDiscCF, na.rm = TRUE) / sum(dpi.sub$NetDiscCapex, na.rm = TRUE) + 1; 
-  Payout.disc <- unlist(approx(dpi.sub$NetCumDiscCF, dpi.sub$Time, 0))[2];
+  Payout.disc <- unlist(approx(dpi.sub$NetCumDiscCF, dpi.sub$Time, 0))[2] / 12;
   NetEUR.MBOE <- sum(dpi.sub$NetBOE, na.rm = TRUE) / 1000;
-  Capex <- max(dpi.sub$NetDiscCapex, na.rm = TRUE);
+  Capex.M <- max(dpi.sub$NetDiscCapex, na.rm = TRUE) / 1000;
   FnD <-  max(dpi.sub$NetDiscCapex, na.rm = TRUE) / sum(dpi.sub$NetBOE, na.rm = TRUE);
   Lifting.Cost <- sum(dpi.sub$NetOpex, na.rm = TRUE) / sum(dpi.sub$NetBOE, na.rm = TRUE);
   NPV15 <- max(dpi.sub$NetCumDiscCF, na.rm = TRUE);
@@ -272,7 +272,7 @@ CF.Metrics <- function(n){
   
   
   
-  metrics <- data.frame(NetEUR.MBOE, NPV15 ,IRR, DPI, BrkEven, Payout.disc, FnD, Lifting.Cost)
+  metrics <- data.frame(NetEUR.MBOE, Capex.M, NPV15 ,IRR, DPI, BrkEven, Payout.disc, FnD, Lifting.Cost)
   
   return(metrics)
 }
