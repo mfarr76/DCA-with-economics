@@ -6,7 +6,7 @@ library(dplyr)
 
 ###load for testing
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 #Average <- read.csv("average_nobu.csv", stringsAsFactors = FALSE)
 #econTbl <- read.csv("econTbl.csv", stringsAsFactors = FALSE)
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
