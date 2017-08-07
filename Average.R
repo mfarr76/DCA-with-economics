@@ -81,8 +81,8 @@ if(nrow(input) < 1)
            Months = cumsum(RowCount), 
            Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
            Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-           CUMOil1 = cumsum(Oil1),
-           CUMGas1 = cumsum(Gas1)) %>% 
+           CUMOil1 = cumsum(ifelse(is.na(Oil1),0,Oil1)),
+           CUMGas1 = cumsum(ifelse(is.na(Gas1), 0, Gas1))) %>% 
     group_by(Months) %>%
     summarise(Gas = mean(Gas1, na.rm = TRUE), #mcf
               GasP10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
