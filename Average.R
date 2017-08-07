@@ -38,23 +38,33 @@ pPhase <- ifelse(og_select == 5, quote(Oil), quote(Gas))
 
 ##filter and rename the production table
 input <- prod_tbl %>%
-  mutate(Time = as.POSIXct(as.Date(D_DATE, "%m/%d/%Y"), 
+  ##need to ensure Time is time/data units for consistency
+  mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
                            origin = "1970-01-01", tz="UTC")) %>%
   select(WellId = Entity,
          Time,
-         Oil = OIL, 
-         Gas = GAS, 
-         EffLat = EFF_LAT)
+         Oil = Liquid, 
+         Gas = Gas, 
+         EffLat = PerfIntervalGross)
 
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(pPhase == "Oil")
 {
-  input <- filter(input, Oil > 0 & EffLat > min_lat)
+  input <- input %>% filter(input, Oil > 0 & EffLat > min_lat) %>% mutate(Gas = ifelse(Gas == 0, NA, Gas))
 }else{
-  input <- filter(input, Gas > 0 & EffLat > min_lat)}
+  input <- input %>% filter(Gas > 0 & EffLat > min_lat) %>% mutate(Oil = ifelse(Oil == 0, NA, Oil))  
+}
 
 
-####create table called Average to house the data used for DCA
+
+input <- input %>%
+  filter(Gas > 0 & EffLat > min_lat) %>%
+  mutate(Oil = ifelse(Oil == 0, NA, Oil))  
+
+write.csv(input, file = "input.csv")
+write.csv(AVERAGE.MONTHLY, file = "average.csv")
+
+ ####create table called Average to house the data used for DCA
 if(nrow(input) < 1)
 {#in no wells are selected, create an Average table with zeros 
   Average.Monthly <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
@@ -63,7 +73,7 @@ if(nrow(input) < 1)
 }else{
   
   ##################dplyr package used for data wrangling
-  Average.Monthly <- input %>%
+ AVERAGE.MONTHLY <- input %>%
     arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
@@ -74,30 +84,35 @@ if(nrow(input) < 1)
            CUMOil1 = cumsum(Oil1),
            CUMGas1 = cumsum(Gas1)) %>% 
     group_by(Months) %>%
-    summarise(Gas = mean(Gas1), #mcf
-              GasP10 = quantile(Gas1, p = 0.90), #mcf
-              GasP90 = quantile(Gas1, p = 0.10), #mcf
-              Oil = mean(Oil1), #bbl
-              OilP10 = quantile(Oil1, p = 0.90), #bbl 
-              OilP90 = quantile(Oil1, p = 0.10), #bbl
-              CUMGas = mean(CUMGas1) / 1000, #mmcf
-              CUMGasP10 = quantile(CUMGas1, p = 0.90) / 1000, #mmcf
-              CUMGASP90 = quantile(CUMGas1, p = 0.10) / 1000, #mmcf
-              CUMOil = mean(CUMOil1) / 1000, #mbo
-              CUMOilP10 = quantile(CUMOil1, p = 0.90) / 1000, #mbo,
-              CUMOilP90 = quantile(CUMOil1, p = 0.10) / 1000, #mbo,
+    summarise(Gas = mean(Gas1, na.rm = TRUE), #mcf
+              GasP10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
+              GasP90 = quantile(Gas1, p = 0.10, na.rm = TRUE), #mcf
+              Oil = mean(Oil1, na.rm = TRUE), #bbl
+              OilP10 = quantile(Oil1, p = 0.90, na.rm = TRUE), #bbl 
+              OilP90 = quantile(Oil1, p = 0.10, na.rm = TRUE), #bbl
+              CUMGas = mean(CUMGas1, na.rm = TRUE) / 1000, #mmcf
+              CUMGasP10 = quantile(CUMGas1, p = 0.90, na.rm = TRUE) / 1000, #mmcf
+              CUMGASP90 = quantile(CUMGas1, p = 0.10, na.rm = TRUE) / 1000, #mmcf
+              CUMOil = mean(CUMOil1, na.rm = TRUE) / 1000, #mbo
+              CUMOilP10 = quantile(CUMOil1, p = 0.90, na.rm = TRUE) / 1000, #mbo,
+              CUMOilP90 = quantile(CUMOil1, p = 0.10, na.rm = TRUE) / 1000, #mbo,
               Yield = Oil / (Gas / 1000), #bbl/mmcf
               YieldP10 = OilP10 / (GasP10 / 1000), #bbl/mmcf 
               YieldP90 = OilP90 / (GasP90 / 1000), #bbl/mmcf
-              GOR = Gas / (Oil / 1000),  #scf/bbl
-              GORP10 = GasP10 / (OilP10 / 1000), #scf/bbl 
-              GORP90 = GasP90 / (OilP90 / 1000), #scf/bbl
+              GOR = Gas / (na_if(Oil,0) / 1000),  #scf/bbl
+              GORP10 = GasP10 / (na_if(OilP10, 0) / 1000), #scf/bbl 
+              GORP90 = GasP90 / (na_if(OilP90,0) / 1000), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount)
  
   #######################
   
 }
+
+summarise(AVERAGE.MONTHLY, mean(Oil>0))
+
+mean(AVERAGE.MONTHLY$Oil > 0)
+mean(AVERAGE.MONTHLY)
 
 
 TimeStamp=paste(date(),Sys.timezone())
