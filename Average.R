@@ -50,18 +50,26 @@ input <- prod_tbl %>%
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(pPhase == "Oil")
 {
-  input <- input %>% filter(input, Oil > 0 & EffLat > min_lat) %>% mutate(Gas = ifelse(Gas == 0, NA, Gas))
+  input <- input %>% filter(input, Oil > 0 & EffLat > min_lat)
 }else{
-  input <- input %>% filter(Gas > 0 & EffLat > min_lat) %>% mutate(Oil = ifelse(Oil == 0, NA, Oil))  
+  input <- input %>% filter(Gas > 0 & EffLat > min_lat)
 }
 
 
 
-input <- input %>%
-  filter(Gas > 0 & EffLat > min_lat) %>%
-  mutate(Oil = ifelse(Oil == 0, NA, Oil))  
+input1 <- input %>%
+  arrange(WellId, Time) %>%
+  group_by(WellId) %>%
+  mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
+         Months = cumsum(RowCount), 
+         Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
+         Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
+         CUMOil1 = cumsum(ifelse(is.na(Oil1),0,Oil1)),
+         CUMGas1 = cumsum(ifelse(is.na(Gas1), 0, Gas1))) %>% 
+  group_by(Months) %>%
+  summarise(Oil = mean(Oil1[Oil1 > 0]))
 
-write.csv(input, file = "input.csv")
+write.csv(input1, file = "input1.csv")
 write.csv(AVERAGE.MONTHLY, file = "average.csv")
 
  ####create table called Average to house the data used for DCA
@@ -81,21 +89,21 @@ if(nrow(input) < 1)
            Months = cumsum(RowCount), 
            Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
            Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-           CUMOil1 = cumsum(ifelse(is.na(Oil1),0,Oil1)),
-           CUMGas1 = cumsum(ifelse(is.na(Gas1), 0, Gas1))) %>% 
+           CUMOil1 = cumsum(Oil1),
+           CUMGas1 = cumsum(Gas1)) %>% 
     group_by(Months) %>%
-    summarise(Gas = mean(Gas1, na.rm = TRUE), #mcf
-              GasP10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
-              GasP90 = quantile(Gas1, p = 0.10, na.rm = TRUE), #mcf
-              Oil = mean(Oil1, na.rm = TRUE), #bbl
-              OilP10 = quantile(Oil1, p = 0.90, na.rm = TRUE), #bbl 
-              OilP90 = quantile(Oil1, p = 0.10, na.rm = TRUE), #bbl
-              CUMGas = mean(CUMGas1, na.rm = TRUE) / 1000, #mmcf
-              CUMGasP10 = quantile(CUMGas1, p = 0.90, na.rm = TRUE) / 1000, #mmcf
-              CUMGASP90 = quantile(CUMGas1, p = 0.10, na.rm = TRUE) / 1000, #mmcf
-              CUMOil = mean(CUMOil1, na.rm = TRUE) / 1000, #mbo
-              CUMOilP10 = quantile(CUMOil1, p = 0.90, na.rm = TRUE) / 1000, #mbo,
-              CUMOilP90 = quantile(CUMOil1, p = 0.10, na.rm = TRUE) / 1000, #mbo,
+    summarise(Gas = mean(Gas1[Gas1 > 0]), #mcf
+              GasP10 = quantile(Gas1[Gas1 > 0], p = 0.90), #mcf
+              GasP90 = quantile(Gas1[Gas1 > 0], p = 0.10), #mcf
+              Oil = mean(Oil1[Oil1 > 0]), #bbl
+              OilP10 = quantile(Oil1[Oil1 > 0], p = 0.90), #bbl 
+              OilP90 = quantile(Oil1[Oil1 > 0], p = 0.10), #bbl
+              CUMGas = mean(CUMGas1[CUMGas1 > 0]) / 1000, #mmcf
+              CUMGasP10 = quantile(CUMGas1[CUMGas1 > 0], p = 0.90) / 1000, #mmcf
+              CUMGASP90 = quantile(CUMGas1[CUMGas1 > 0], p = 0.10) / 1000, #mmcf
+              CUMOil = mean(CUMOil1[CUMOil1 > 0]) / 1000, #mbo
+              CUMOilP10 = quantile(CUMOil1[CUMOil1 > 0], p = 0.90) / 1000, #mbo,
+              CUMOilP90 = quantile(CUMOil1[CUMOil1 > 0], p = 0.10) / 1000, #mbo,
               Yield = Oil / (Gas / 1000), #bbl/mmcf
               YieldP10 = OilP10 / (GasP10 / 1000), #bbl/mmcf 
               YieldP90 = OilP90 / (GasP90 / 1000), #bbl/mmcf
