@@ -1,20 +1,20 @@
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #####not to load in spotfire
 og_select <- 1
-#prod_tbl <- read.csv("Updated_IHS.csv")
+prod_tbl <- read.csv("IHS_PROD.csv")
 
 min_lat <- 1000
 normal_lat <- 5000
 ####
-#WellId <- prod_tbl$Entity
-#EffLat <- prod_tbl$PerfIntervalGross
-#Time <- prod_tbl$c.ProductionDate
-#Oil <- prod_tbl$Liquid
-#Gas <- prod_tbl$Gas
-#input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table 
+WellId <- prod_tbl$Entity
+EffLat <- prod_tbl$PerfIntervalGross
+Time <- prod_tbl$c.Production.Date
+Oil <- prod_tbl$Liquid
+Gas <- prod_tbl$Gas
+input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table 
 
 
 ##Michael Farr
@@ -34,12 +34,12 @@ library(tibble, warn.conflicts = FALSE)
 
 ##"og_select" document property control allows the user to select OIL (5) or GAS (2) as the primary phase
 ##the number convention will be used in the dca portion of the workflow
-pPhase <- ifelse(og_select == 5, quote(Oil), quote(Gas)) 
+pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
 
 ##filter and rename the production table
 input <- prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
-  mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
+  mutate(Time = as.POSIXct(as.Date(Time , "%m/%d/%Y"), 
                            origin = "1970-01-01", tz="UTC")) %>%
   select(WellId = Entity,
          Time,
@@ -50,9 +50,9 @@ input <- prod_tbl %>%
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(pPhase == "Oil")
 {
-  input <- input %>% filter(input, Oil > 0 & EffLat > min_lat)
+  input <- filter(input, Oil > 0 & EffLat > min_lat)
 }else{
-  input <- input %>% filter(Gas > 0 & EffLat > min_lat)
+  input <- filter(input, Gas > 0 & EffLat > min_lat)
 }
 
 
