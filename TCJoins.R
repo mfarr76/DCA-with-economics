@@ -77,6 +77,8 @@ TCWellList <- wellheader %>%
          Lbs.Ft, Bbl.Ft, Norm.Lat.Length, Spacing.Avg, Max.Infill.Time,
          TC.qi, TC.b, TC.Di, TC.Dmin, TC.Years)
 
+dummytable <- c("Blank")
+
 
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
