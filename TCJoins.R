@@ -2,7 +2,7 @@
 rm(list = ls())
 library(dplyr, warn.conflicts = FALSE)
 
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_Monthly_AT.RData")
 
@@ -19,14 +19,14 @@ b <- 1.2
 Di <- 70
 Dmin <- 8
 Years <- 10
-TC.Name <- c("TEST")
-TC.Spacing <- 300
-TC.Lbs.Ft <- 1500
+TC_Name <- c("TEST")
+TC_Spacing <- 300
+TC_Lbs_Ft <- 1500
 
 
 #Typecurve name
 #CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
-CurveName <- paste(TC.Name)
+CurveName <- paste(TC_Name)
 
 prod_tbl <- production %>%
   
@@ -70,12 +70,12 @@ TC.Cums <- bind_rows(CUMprod, CUMtc)
 TCWellList <- wellheader %>%
   mutate(Name = CurveName,
          Norm.Lat.Length = NormalizedLateralLength,
-         Lbs.Ft = ProppantAmountTotal / PerfIntervalGross, 
-         Bbl.Ft = (FluidAmountTotal/42) / PerfIntervalGross,
-         TC.qi = qi, TC.b = b, TC.Di = Di, TC.Dmin = Dmin, TC.Years = Years) %>%
+         Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
+         Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross,
+         TC_qi = qi, TC_b = b, TC_Di = Di, TC_Dmin = Dmin, TC_Years = Years) %>%
   select(Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
-         Lbs.Ft, Bbl.Ft, Norm.Lat.Length, Spacing.Avg, Max.Infill.Time,
-         TC.qi, TC.b, TC.Di, TC.Dmin, TC.Years)
+         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time,
+         TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years)
 
 dummytable <- c("Blank")
 

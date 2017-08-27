@@ -1,48 +1,58 @@
 
 rm(list = ls())
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/econtbl.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/spacing_opt.RData")
 
-library(dplyr)
-library(purrr)
+
+##calculates spacing units per well and then wells per section
+
+
+##install package if it is not already installed
+list.of.packages <- c("dplyr", "tibble")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
+
+##load package
+library(dplyr, warn.conflicts = FALSE)
+library(tibble, warn.conflicts = FALSE)
+
 
 
 ##user input
-spacing.unit <- 640
+spacing_unit
+##table
+Econ.Metrics
 
 spac_tbl <- TCWellList %>%
-  mutate(tcName = as.factor(tcName),
-         WellSpacingUnit = (Norm.Lat.Length * Spacing.Avg) / 43560,
-         WellsPerUnit = spacing.unit / WellSpacingUnit) %>%
-  group_by(tcName) %>%
-  summarise(Lat.Length.avg = mean(PerfIntervalGross),
-            Norm.Lat.Length = mean(Norm.Lat.Length),
-            Proppant = mean(ProppantAmountTotal) / 42, 
-            Fluid = mean(FluidAmountTotal), 
-            Lbs.Ft = mean(Lbs.Ft),
-            Bbl.Ft = mean(Bbl.Ft), 
-            Spacing.avg.ft = mean(Spacing.Avg),
-            WellSpacingUnit.ac = mean(WellSpacingUnit),
-            WellsPerUnit = mean(WellsPerUnit)) %>%
-  select(tcName, Lat.Length.avg, Norm.Lat.Length, Proppant, Fluid, Lbs.Ft, Bbl.Ft, Spacing.avg.ft, 
-         WellSpacingUnit.ac, WellsPerUnit)
+  mutate(tcName = as.factor(TC_Name),
+         Single_Well_Unit = (Norm_Lat_Length * Spacing_Avg) / 43560,
+         Wells_Per_DSU = spacing_unit / Single_Well_Unit) %>%
+  group_by(TC_Name) %>%
+  summarise(Lat_Length_avg = mean(PerfIntervalGross, is.na = TRUE),
+            Norm_Lat_Length = mean(Norm_Lat_Length, is.na = TRUE),
+            Proppant = mean(ProppantAmountTotal, is.na = TRUE) / 42, 
+            Fluid = mean(FluidAmountTotal, is.na = TRUE), 
+            Lbs_Ft = mean(Lbs_Ft, is.na = TRUE),
+            Bbl_Ft = mean(Bbl_Ft, is.na = TRUE), 
+            Spacing_Avg_FT = mean(Spacing_Avg, is.na = TRUE),
+            Single_Well_Unit_ac = mean(Single_Well_Unit, is.na = TRUE),
+            Wells_Per_DSU = mean(Wells_Per_DSU, is.na = TRUE)) %>%
+  select(TC_Name, Lat_Length_avg, Norm_Lat_Length, Proppant, Fluid, Lbs_Ft, Bbl_Ft, Spacing_avg_ft, 
+         Single_Well_Unit_ac, Wells_Per_DSU)
 
-EconMetrics$tcName <- as.character(EconMetrics$tcName)
-spac_tbl$tcName <- as.character(spac_tbl$tcName)
-
-
-DSU <- left_join(spac_tbl, EconMetrics, by = "tcName") %>%
-  mutate(EUR.SpacingUnit.MBOE = WellsPerUnit * EUR.MBOE, 
-         PV15.SpacingUnit = NPV15 * WellsPerUnit, 
-         Capex.SpacingUnit = Capex * WellPerUnit)
+Econ.Metrics$TC_Name <- as.character(Econ.Metrics$TC_Name)
+spac_tbl$TC_Name <- as.character(spac_tbl$TC_Name)
 
 
-clrTbl <- 1
-clrEcon <- if(clrTbl == 1){rm(EconTable)}
-
+DSU <- left_join(spac_tbl, Econ.Metrics, by = "TC_Name") %>%
+  mutate(EUR_MBOE_DSU = Wells_Per_DSU * NetEUR_MBOE, 
+         NPV15_DSU = NPV15_M * Wells_Per_DSU, 
+         Capex_DSU = Capex_M * Wells_Per_DSU) %>%
+  select(TC_Name, Lat_Length_avg, Norm_Lat_Length, Proppant, Fluid, Lbs_Ft, Bbl_Ft, Spacing_Avg_FT, 
+         Single_Well_Unit_ac, Wells_Per_DSU, NetEUR_MBOE, Capex_M, NPV15_M, IRR, DPI, NPV15_DSU, Capex_DSU, 
+         EUR_MBOE_DSU)
 
 
 TimeStamp=paste(date(),Sys.timezone())
