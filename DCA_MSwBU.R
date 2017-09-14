@@ -2,8 +2,9 @@ rm(list = ls())
 library(dplyr)
 
 ###load for testing
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 #########################LOAD - TESTING ONLY#############################################################
 b <- 1.1
 di <- 82
@@ -14,7 +15,7 @@ ms <- 1 #multisegment forecast 1 = On 2 = Off
 abRate <- 150
 time_ms <- 3
 di_ms <- 90
-og_select <- 5
+og_select <- 2
 curve_select <- 0
 ###########################################################################################################
 
@@ -77,22 +78,38 @@ time_to_peak <- user_phase$month[which.max(user_phase$phase)]
 a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
 t.trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
 
+##----------------back calculate qi----------------
+if(ms == 1){
+  ai_ms <- -log(1-di_ms)/t_units
+  qi_back_calc <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
+}else if(b == 0){
+  ai_exp <- -log(1-di)/t_units
+  qi_back_calc <- qi/(1 - exp(-ai_exp*1))*ai_exp ##qi back calc from di.ms and qi from average tbl
+}else if(b == 1){
+  ai_har <- (di / (1 - di) / t_units)
+  qi_back_calc <- (qi * ai_har) / (log(1 + ai_har))
+}else{
+  ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
+  qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
+}
 
-#ms <- 0 #multisegment forecast 1 = On 2 = Off
-#abRate <- 150
-#time.ms <- 10
-#di.ms <- 10
+
+##-------------------------------------------------
+
+
+
+
 prod_time <- years * 12 #convert years to months
 t_exp_har <- seq_len(prod_time) #time units for exp and har declines
 t_exp_har1 <- t_exp_har - 1 #time units for exp and har declines
 
 
 ##----------------DCA function notes------------
-######forecast.bu 
+######forecast_bu 
 #calc the buildup rate (if any). right now, the code just copies the rates to time.to.peak
 #further work is need to iterate on what the qi and decline would need to be to generate the monthly volumes
 
-######forecast.exp
+######forecast_exp
 #takes the peak volume and back calc the qi need to produce the peak volumes reported (qi.bu) at a given ai.ms
 #time start at month 2 as not to duplicate month 1 from forecast.bu
 
@@ -112,15 +129,16 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
     { #multi.segment forecast = ms
       t_ms <- seq_len(time_ms)
       t_ms2 <- t_ms - 1
-      ai_ms <- -log(1-di_ms)/t_units
-      qi_bu <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
+      #ai_ms <- -log(1-di_ms)/t_units
+      #qi_bu <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
       Exp_Np1_ms <- qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms))
       Exp_Np2_ms <- qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms2))
       exp_ms <- Exp_Np1_ms - Exp_Np2_ms
       
       #t <- seq(time.ms, prod.time)
       #t2 <- t - 1
-      qi <- qi_bu * exp(-ai_ms * time_ms)
+      qi <- qi_back_calc * exp(-ai_ms * time_ms)
+      #qi <- qi_output * exp(-ai_ms * time_ms)
       exp_ms
     }  
   #c(rate.bu, exp.ms)
@@ -128,38 +146,27 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
   forecast_hyp <- 
     if(b == 0){
       
-      ai_exp <- -log( 1 - di ) / t_units
-      if(ms == 2){qi <- (qi * ai_exp) / (log(1 + ai_exp))}
+      Exp_Np1 <- qi_back_calc / ai_exp * (1 - exp(-ai_exp * (t_exp_har)))
+      Exp_Np2 <- qi_back_calc / ai_exp * (1 - exp(-ai_exp * (t_exp_har1)))
       
-      Exp_Np1 <- qi / ai_exp * (1 - exp(-ai_exp * (t_exp_har)))
-      Exp_Np2 <- qi / ai_exp * (1 - exp(-ai_exp * (t_exp_har1)))
-      
-      #exp <- data.frame(time = t.exp, prod.vol = Exp.Np1 - Exp.Np2)
       Exp_Np1 - Exp_Np2
       
     }else if(b == 1){
       
-      ai_har <- (di / (1 - di) / t_units)
-      
-      if(ms == 2){qi <- (qi * ai_har) / (log(1 + ai_har))}
-      
-      Har_Np1 <- qi / ai_har * log(1 + ai_har * (t_exp_har))
-      Har_Np2 <- qi / ai_har * log(1 + ai_har * (t_exp_har1))
+      Har_Np1 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har))
+      Har_Np2 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har1))
       
       Har_Np1 - Har_Np2
-      
-      
       
     }else{
       
       ###############Hyperbolic - b value is not 0 or 1
-      ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
       a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
       #part1 <- qi * ai * (1 - b)
       #part2 <- 1 - 1 / (1 + ai * b)^((1 - b)/b)
       #part3 <- part1/part2
-      if(ms == 2)
-      {qi <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b))} #back calc qi based on Np (month 1)
+      #if(ms == 2)
+      #{qi <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b))} #back calc qi based on Np (month 1)
       
       #determine parameters for dmin
       t_trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
@@ -167,14 +174,14 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
       t_trans_seq2 <- t_trans_seq - 1
       
       ###########forecast to dmin################
-      Hyp_Np_to_dmin1 <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq)^((1 - b) / b))))
-      Hyp_Np_to_dmin2 <- (qi/ (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq2)^((1 - b) / b))))
+      Hyp_Np_to_dmin1 <- (qi_back_calc / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq)^((1 - b) / b))))
+      Hyp_Np_to_dmin2 <- (qi_back_calc / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq2)^((1 - b) / b))))
       Hyp_Npdmin <- Hyp_Np_to_dmin1  - Hyp_Np_to_dmin2
       
       ##########forecast expontintal to end of forecast years (Terminal decline portion of the curve)#########
       admin <- -log(1 - dmin)/ t_units
-      q_trans <- qi / ((1 + b * ai_hyp * t_trans))^(1 / b) #rate at transition month 
-      Np_trans <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b * t_trans)^((1 - b) / b)))) #cum volume at tranistion month
+      q_trans <- qi_back_calc / ((1 + b * ai_hyp * t_trans))^(1 / b) #rate at transition month 
+      Np_trans <- (qi_back_calc / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b * t_trans)^((1 - b) / b)))) #cum volume at tranistion month
       t_exp_final <- seq(1:(prod_time - t_trans))
       t_exp_final1 <- 0:(prod_time - t_trans - 1)
       

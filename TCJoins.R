@@ -68,14 +68,17 @@ TC.Cums <- bind_rows(CUMprod, CUMtc)
 
 ##create a table for typecurve documenting purposes...create a record
 TCWellList <- wellheader %>%
-  mutate(Name = CurveName,
-         Norm.Lat.Length = NormalizedLateralLength,
+  mutate(TC_Name = CurveName,
+         Norm_Lat_Length = NormalizedLateralLength,
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross,
-         TC_qi = qi, TC_b = b, TC_Di = Di, TC_Dmin = Dmin, TC_Years = Years) %>%
-  select(Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
+         TC_qi = qi, TC_b = b, TC_Di = Di, TC_Dmin = Dmin, TC_Years = Years, 
+         RATIO_Seg_Time = TC.Yield.time, RATIO_1st_Seg = TC.Yield1, RATIO_2nd_Seg = TC.Yield2, 
+         RATIO_Final_Seg = TC.Yield3) %>%
+  select(TC_Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
          Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time,
-         TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years)
+         TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years, RATIO_Seg_Time, RATIO_1st_Seg, RATIO_2nd_Seg, 
+         RATIO_Final_Seg)
 
 dummytable <- c("Blank")
 

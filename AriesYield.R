@@ -2,9 +2,9 @@ rm(list = ls())
 forecast.years <- 30
 forecast.time <- 30*12
 time.1 <- 4
-yield.1 <- 900
-yield.2 <- 3400
-yield.3 <- 3400
+yield.1 <- 0
+yield.2 <- 0
+yield.3 <- 0
 mnth_day_select <- 1
 og_select <- 1
 
@@ -18,7 +18,9 @@ aries_yield <- function(forecast.time, time.1, yield.1, yield.2, yield.3)
 
   
   ##1st segment##
-  a.1 <- log( yield.1 / yield.2) / time.1 ##calc nominal decline
+  a.1 <- if(yield.1 == 0) {0
+    }else{
+      log( yield.1 / yield.2) / time.1} ##calc nominal decline
   t.1 <- seq_along(1 : time.1) #length of 1st segment
   
   ##ratio calc for the month
