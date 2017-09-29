@@ -79,6 +79,8 @@ a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
 t.trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
 
 ##----------------back calculate qi----------------
+#qi_back_calc that is calculated based upon type of decline and is used as an output variable 
+#for the user to see and use when checking the dca
 if(ms == 1){
   ai_ms <- -log(1-di_ms)/t_units
   qi_back_calc <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
@@ -93,7 +95,7 @@ if(ms == 1){
   qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
 }
 
-
+qi.back.calc <- qi_back_calc #remove underscores to conform with Spotfire standards for output variables
 ##-------------------------------------------------
 
 
@@ -129,30 +131,28 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
     { #multi.segment forecast = ms
       t_ms <- seq_len(time_ms)
       t_ms2 <- t_ms - 1
-      #ai_ms <- -log(1-di_ms)/t_units
-      #qi_bu <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
-      Exp_Np1_ms <- qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms))
-      Exp_Np2_ms <- qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms2))
+      ai_ms <- -log(1-di_ms)/t_units
+      Exp_Np1_ms <- qi_back_calc / ai_ms * (1 - exp(-ai_ms * t_ms))
+      Exp_Np2_ms <- qi_back_calc / ai_ms * (1 - exp(-ai_ms * t_ms2))
       exp_ms <- Exp_Np1_ms - Exp_Np2_ms
       
-      #t <- seq(time.ms, prod.time)
-      #t2 <- t - 1
-      qi <- qi_back_calc * exp(-ai_ms * time_ms)
-      #qi <- qi_output * exp(-ai_ms * time_ms)
+      qi_back_calc <- qi_back_calc * exp(-ai_ms * time_ms) #new qi for rest of forecast
+      #this will not over write the initial qi_back_calc which is used in a visualization because
+      #it is in a function whereas the other in the global environment
       exp_ms
     }  
-  #c(rate.bu, exp.ms)
+  
   
   forecast_hyp <- 
     if(b == 0){
-      
+      ai_exp <- -log(1-di)/t_units
       Exp_Np1 <- qi_back_calc / ai_exp * (1 - exp(-ai_exp * (t_exp_har)))
       Exp_Np2 <- qi_back_calc / ai_exp * (1 - exp(-ai_exp * (t_exp_har1)))
       
       Exp_Np1 - Exp_Np2
       
     }else if(b == 1){
-      
+      ai_har <- (di / (1 - di) / t_units)
       Har_Np1 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har))
       Har_Np2 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har1))
       
@@ -162,6 +162,7 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
       
       ###############Hyperbolic - b value is not 0 or 1
       a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
+      ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
       #part1 <- qi * ai * (1 - b)
       #part2 <- 1 - 1 / (1 + ai * b)^((1 - b)/b)
       #part3 <- part1/part2

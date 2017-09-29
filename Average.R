@@ -1,13 +1,15 @@
 rm(list = ls())
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("IHS_PROD.csv")
 
 min_lat <- 1000
 normal_lat <- 5000
+
+write.csv(prod_tbl, file = "prod_tbl.csv")
 ####
 WellId <- prod_tbl$Entity
 EffLat <- prod_tbl$PerfIntervalGross
@@ -33,7 +35,7 @@ library(tibble, warn.conflicts = FALSE)
 
 
 ##"og_select" document property control allows the user to select OIL (5) or GAS (2) as the primary phase
-##the number convention will be used in the dca portion of the workflow
+##the number convention will be used in the dca portion of the workflow too
 pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
 
 ##filter and rename the production table
@@ -56,21 +58,6 @@ if(pPhase == "Oil")
 }
 
 
-
-input1 <- input %>%
-  arrange(WellId, Time) %>%
-  group_by(WellId) %>%
-  mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
-         Months = cumsum(RowCount), 
-         Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
-         Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-         CUMOil1 = cumsum(ifelse(is.na(Oil1),0,Oil1)),
-         CUMGas1 = cumsum(ifelse(is.na(Gas1), 0, Gas1))) %>% 
-  group_by(Months) %>%
-  summarise(Oil = mean(Oil1[Oil1 > 0]))
-
-write.csv(input1, file = "input1.csv")
-write.csv(AVERAGE.MONTHLY, file = "average.csv")
 
  ####create table called Average to house the data used for DCA
 if(nrow(input) < 1)
@@ -121,6 +108,21 @@ summarise(AVERAGE.MONTHLY, mean(Oil>0))
 
 mean(AVERAGE.MONTHLY$Oil > 0)
 mean(AVERAGE.MONTHLY)
+
+CUM.OIL.GAS <- input %>%
+  arrange(WellId, 
+          Time) %>%
+  group_by(WellId) %>%
+  mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
+         Months = cumsum(RowCount), 
+         Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
+         Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
+         CUMOil1 = cumsum(Oil1),
+         CUMGas1 = cumsum(Gas1)) %>% 
+  group_by(Months) %>%
+  filter(Months == 12) %>%
+  select(Months, CUMOil1, CUMGas1)
+
 
 
 TimeStamp=paste(date(),Sys.timezone())
