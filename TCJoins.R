@@ -1,7 +1,7 @@
 
 rm(list = ls())
 library(dplyr, warn.conflicts = FALSE)
-
+library(RODBC, warn.conflicts = FALSE)
 
 #########################LOAD - TESTING ONLY#################################
 ##
@@ -22,7 +22,7 @@ b <- 1.2
 Di <- 70
 Dmin <- 8
 Years <- 10
-TC_Name <- c("TEST")
+user_TCname <- c("TEST")
 TC_Spacing <- 300
 TC_Lbs_Ft <- 1500
 ##############################################################################
@@ -36,6 +36,7 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
+library(RODBC, warn.conflicts = FALSE)
 
 
 ##tables needed
@@ -57,14 +58,18 @@ CurveName <- paste(user_TCname)#name comes from user input
 
 
 ##copy typecurve to a new datatable called "TCGroups"
-TCGroups <- DCA.Forecast %>%
+TC_Groups <- DCA.Forecast %>%
   mutate(TC_Name = CurveName) %>%
   select(TC_Name, Time, Gas_mcf, Oil_bbl, 
          cumOil_mbo, cumGas_mmcf)
 
+
+
+
+
 #############################################################################
 ##copy 12 month cum for every well in the typecurve and name it CurveName
-CUMprod <- prod_tbl %>%
+CUM_prod <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
   mutate(TC_Name = CurveName, 
          Time = as.numeric(c.Months)) %>%
@@ -74,14 +79,14 @@ CUMprod <- prod_tbl %>%
          CUM12MOGas = c.Cum.Gas.MMcf.Norm)
 
 ##copy the 12 month cum from the typecurve and name it CUMTC
-CUMtc <- DCA.Forecast %>%
+CUM_tc <- DCA.Forecast %>%
   filter(Time == 12) %>%
   mutate(TC_Name = paste("CUMTC", CurveName),
          Time = as.numeric(Time)) %>%
   select(Time, TC_Name, CUM12MOOil = cumOil_mbo, CUM12MOGas = cumGas_mmcf)
 
 ##Combine CUMprod and CUMtc into 1 table called "TC.Cums"
-TCCums <- bind_rows(CUMprod, CUMtc)
+TC_Cums <- bind_rows(CUM_prod, CUM_tc)
 ##############################################################################
 
 ##----------------------------------------------------------------------------
@@ -104,30 +109,56 @@ forecast_years
 ##----------------------------------------------------------------------------
 
 ##create a table for typecurve documenting purposes...create a record
-TCWellList <- wellheader %>%
+TC_WellList <- wellheader %>%
   mutate(TC_Name = CurveName,
          Norm_Lat_Length = NormalizedLateralLength,
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
-         Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross,
-         TC_qi = qi, TC_b = b, TC_Di = di, TC_Dmin = Dmin, TC_Years = forecast_years, 
-         RATIO_Seg_Time = time_segment, RATIO_1st_Seg = ratio_1_user, RATIO_2nd_Seg = ratio_2_user, 
-         RATIO_Final_Seg = ratio_3_user) %>%
+         Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross) %>%
   select(TC_Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
-         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time,
-         TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years, RATIO_Seg_Time, RATIO_1st_Seg, RATIO_2nd_Seg, 
-         RATIO_Final_Seg)
+         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time)
 
 
-TC.Parameters <- data.frame(TC_Name = CurveName, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
+TC_Parameters <- data.frame(TC_Name = CurveName, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
-                            Multi_segment = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
+                            MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
                             MS_Di = di_ms, qi, Di = di, b, Ratio_segment = time_segment,
                             Initial_ratio = ratio_1_user, Second_ratio = ratio_2_user, Final_ratio = ratio_3_user,
-                            Abandonment_rate = abRate, Forecast_years = forecast_years)
+                            Ab_rate = abRate, Forecast_years = forecast_years)
+
+P_phase <- ifelse(TC_Parameters$Primary_phase == "Gas", 2, 3)
 
 
+TC_Parameters <- TC_Parameters %>%
+  mutate(First_prod_month = DCA.Forecast[1,P_phase],
+         qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
+  select(TC_Name, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
+         Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Ratio_segment, Initial_ratio, Second_ratio, 
+         Final_ratio, Ab_rate, Forecast_years)
+
+
+
+##use a blank table to prevent the data function from being removed due to IP script
 dummytable <- c("Blank")
+
+
+##write to access file
+
+##load drivers, file location, and name of the table you want to save
+driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}"
+dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
+
+##channel created for connection
+ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
+
+##save function to save table created to access
+sqlSave(ch, TC_Groups, tablename = "TC_Groups", rownames = FALSE, append = TRUE)
+sqlSave(ch, TC_Cums, tablename = "TC_Cums", rownames = FALSE, append = TRUE)
+sqlSave(ch, TC_WellList, tablename = "TC_WellList", rownames = FALSE, append = TRUE)
+sqlSave(ch, TC_Parameters, tablename = "TC_Parameters", rownames = FALSE, append = TRUE)
+
+
+
 
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
