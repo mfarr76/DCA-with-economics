@@ -117,36 +117,39 @@ TC_WellList <- wellheader %>%
   select(TC_Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
          Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time)
 
-
+##create tbl with forecast parameters
 TC_Parameters <- data.frame(TC_Name = CurveName, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
                             MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
                             MS_Di = di_ms, qi, Di = di, b, Ratio_segment = time_segment,
                             Initial_ratio = ratio_1_user, Second_ratio = ratio_2_user, Final_ratio = ratio_3_user,
-                            Ab_rate = abRate, Forecast_years = forecast_years)
+                            Ab_rate = abRate, Forecast_years = forecast_years, Gas_EUR_mmcf = max(DCA.Forecast$cumGas_mmcf, na.rm = TRUE), 
+                            Oil_EUR_mbo = max(DCA.Forecast$cumOil_mbo, na.rm = TRUE))
 
+##establish the primary phase
 P_phase <- ifelse(TC_Parameters$Primary_phase == "Gas", 2, 3)
 
-
+##create first prod mnth and qi month (time to peak mnth)
 TC_Parameters <- TC_Parameters %>%
   mutate(First_prod_month = DCA.Forecast[1,P_phase],
          qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
   select(TC_Name, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
          Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Ratio_segment, Initial_ratio, Second_ratio, 
-         Final_ratio, Ab_rate, Forecast_years)
+         Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo)
 
 
 
 ##use a blank table to prevent the data function from being removed due to IP script
-dummytable <- c("Blank")
+#dummytable <- c("Blank")
 
 
 ##write to access file
 
 ##load drivers, file location, and name of the table you want to save
 driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}"
-dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
+#dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
+dLocation <- "N:/Dept/Prod/Aries/Db/Houston/2017 Projects/A&D/PRESIDIO/ValVerdeTypeCurves.accdb"
 
 ##channel created for connection
 ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
@@ -158,7 +161,7 @@ sqlSave(ch, TC_WellList, tablename = "TC_WellList", rownames = FALSE, append = T
 sqlSave(ch, TC_Parameters, tablename = "TC_Parameters", rownames = FALSE, append = TRUE)
 
 
-
+close(ch)
 
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)

@@ -17,6 +17,8 @@ time_ms <- 3
 di_ms <- 90
 og_select <- 2
 curve_select <- 0
+write.csv(AVERAGE.MONTHLY, file = "prod.csv")
+write.csv(DCA.Forecast, file = "dca.csv")
 ###########################################################################################################
 
 
@@ -83,16 +85,16 @@ t.trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time
 #for the user to see and use when checking the dca
 if(ms == 1){
   ai_ms <- -log(1-di_ms)/t_units
-  qi_back_calc <- qi/(1 - exp(-ai_ms*1))*ai_ms ##qi back calc from di.ms and qi from average tbl
+  qi_back_calc <- qi/(1 - exp(-ai_ms*1))*ai_ms ##exponential - qi back calc from di.ms and qi from average tbl
 }else if(b == 0){
   ai_exp <- -log(1-di)/t_units
-  qi_back_calc <- qi/(1 - exp(-ai_exp*1))*ai_exp ##qi back calc from di.ms and qi from average tbl
+  qi_back_calc <- qi/(1 - exp(-ai_exp*1))*ai_exp ##exponential - back calc qi based on Np (month 1)
 }else if(b == 1){
   ai_har <- (di / (1 - di) / t_units)
-  qi_back_calc <- (qi * ai_har) / (log(1 + ai_har))
+  qi_back_calc <- (qi * ai_har) / (log(1 + ai_har)) ##harmonic - back calc qi based on Np (month 1)
 }else{
   ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
-  qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
+  qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) ##hyperbolic - #back calc qi based on Np (month 1)
 }
 
 qi.back.calc <- qi_back_calc #remove underscores to conform with Spotfire standards for output variables
@@ -163,6 +165,8 @@ DCA <- function(b, di, dmin, di_ms, years, time_ms)
       ###############Hyperbolic - b value is not 0 or 1
       a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
       ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
+      
+      ##this was moved into the global environment
       #part1 <- qi * ai * (1 - b)
       #part2 <- 1 - 1 / (1 + ai * b)^((1 - b)/b)
       #part3 <- part1/part2

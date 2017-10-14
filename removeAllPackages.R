@@ -1,7 +1,8 @@
+rm(list = ls())
 
 # create a list of all installed packages
 ip <- as.data.frame(installed.packages())
-head(ip)
+#head(ip)
 # if you use MRO, make sure that no packages in this library will be removed
 ip <- subset(ip, grepl("Documents", ip$LibPath))
 # we don't want to remove base or recommended packages either\
@@ -20,3 +21,17 @@ ip <- ip[!(ip[,"Priority"] %in% c("base", "recommended")),]
 path.lib <- unique(ip$LibPath)
 pkgs.to.remove <- as.character(ip[,1])
 sapply(pkgs.to.remove, remove.packages, lib = path.lib)
+
+installed.packages("dplyr")
+
+packages <- c("dplyr")
+
+check <- if(all(packages %in% installed.packages(lib.loc=.libPaths()))){
+  msg <- "Ok!"
+}else{
+  msg <- "Some packages seem to be missing!"
+}
+
+check
+sessionInfo()
+install.packages("dplyr")
