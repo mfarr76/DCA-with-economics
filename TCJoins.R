@@ -122,7 +122,7 @@ TC_Parameters <- data.frame(TC_Name = CurveName, Primary_phase = ifelse(og_selec
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
                             MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
-                            MS_Di = di_ms, qi, Di = di, b, Ratio_segment = time_segment,
+                            MS_Di = di_ms, qi, Di = di, b, Dmin, Ratio_segment = time_segment,
                             Initial_ratio = ratio_1_user, Second_ratio = ratio_2_user, Final_ratio = ratio_3_user,
                             Ab_rate = abRate, Forecast_years = forecast_years, Gas_EUR_mmcf = max(DCA.Forecast$cumGas_mmcf, na.rm = TRUE), 
                             Oil_EUR_mbo = max(DCA.Forecast$cumOil_mbo, na.rm = TRUE))
@@ -135,7 +135,7 @@ TC_Parameters <- TC_Parameters %>%
   mutate(First_prod_month = DCA.Forecast[1,P_phase],
          qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
   select(TC_Name, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
-         Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Ratio_segment, Initial_ratio, Second_ratio, 
+         Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Dmin, Ratio_segment, Initial_ratio, Second_ratio, 
          Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo)
 
 

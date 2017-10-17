@@ -59,14 +59,18 @@ AVERAGE.MONTHLY
 cInput <- og_select + curve_select
 ##############table structure
 
+
+##create user_phase for buildup and qi
+##limit the number of months to 1:6
 if(nrow(AVERAGE.MONTHLY) > 1){
   user_phase <- data.frame(
-    month = as.numeric(AVERAGE.MONTHLY[[1]]),
-    phase = as.numeric(AVERAGE.MONTHLY[[cInput]]))
+    #month = as.numeric(AVERAGE.MONTHLY[[1]]),
+    month = as.numeric(AVERAGE.MONTHLY[1:6,1]),
+    #phase = as.numeric(AVERAGE.MONTHLY[[cInput]]))
+    phase = as.numeric(AVERAGE.MONTHLY[1:6,cInput]))
 }else{
   user_phase <- data.frame(month = c(0), phase = c(0))
 }
-
 
 
 di <- di/100
@@ -75,7 +79,7 @@ di_ms <- di_ms/100
 
 t_units <- 12
 mnth1_rate <- first(user_phase[[2]], 1)
-qi <- max(slice(user_phase[2], 1:12), na.rm = TRUE)
+qi <- max(slice(user_phase[2], 1:6), na.rm = TRUE) #limit the months for buildup qi
 time_to_peak <- user_phase$month[which.max(user_phase$phase)]
 a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
 t.trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
