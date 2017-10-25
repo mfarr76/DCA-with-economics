@@ -44,13 +44,14 @@ wellheader #wellheader table to get spacing
 prod_tbl #production table
 DCA.Forecast #typecurve table
 wellheader #wellheader table to get spacing
+Ratio_parm #yield / gor value used for grouping
 
 
 
 
 #Typecurve name
 #CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
-CurveName <- paste(user_TCname)#name comes from user input
+#CurveName <- paste(user_TCname)#name comes from user input
 
 ##make data types the same
 #prod_tbl$c.Months <- as.numeric(prod_tbl$c.Months)
@@ -58,20 +59,17 @@ CurveName <- paste(user_TCname)#name comes from user input
 
 
 ##copy typecurve to a new datatable called "TCGroups"
-TC_Groups <- DCA.Forecast %>%
-  mutate(TC_Name = CurveName) %>%
-  select(TC_Name, Time, Gas_mcf, Oil_bbl, 
-         cumOil_mbo, cumGas_mmcf)
-
-
-
+#TC_Groups <- DCA.Forecast %>%
+#  mutate(TC_Name = user_TCname) %>%
+#  select(TC_Name, Time, Gas_mcf, Oil_bbl, 
+#         cumOil_mbo, cumGas_mmcf)
 
 
 #############################################################################
-##copy 12 month cum for every well in the typecurve and name it CurveName
+##copy 12 month cum for every well in the typecurve and name it user_TCname
 CUM_prod <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
-  mutate(TC_Name = CurveName, 
+  mutate(TC_Name = user_TCname, 
          Time = as.numeric(c.Months)) %>%
   select(TC_Name,
          Time, 
@@ -81,13 +79,38 @@ CUM_prod <- prod_tbl %>%
 ##copy the 12 month cum from the typecurve and name it CUMTC
 CUM_tc <- DCA.Forecast %>%
   filter(Time == 12) %>%
-  mutate(TC_Name = paste("CUMTC", CurveName),
+  mutate(TC_Name = paste("CUMTC", user_TCname),
          Time = as.numeric(Time)) %>%
   select(Time, TC_Name, CUM12MOOil = cumOil_mbo, CUM12MOGas = cumGas_mmcf)
 
 ##Combine CUMprod and CUMtc into 1 table called "TC.Cums"
 TC_Cums <- bind_rows(CUM_prod, CUM_tc)
 ##############################################################################
+
+##create a table with tc with wells
+prod_tbl1 <- prod_tbl %>%
+  filter(!is.na(c.Months)) %>%
+  mutate( TC_Group = user_TCname,
+          Well_Type = paste("PDP")) %>%
+  select(WellID = PrimaryWellAPI,
+         TC_Group,
+         Well_Type, 
+         Time = c.Months,
+         Gas_mcf = c.Gas.Normalized, 
+         Oil_bbl = c.Liquid.Normalized, 
+         cumOil_mbo = c.Cum.Liquid.Mbo.Norm, 
+         cumGas_mmcf = c.Cum.Gas.MMcf.Norm)
+
+TC_Groups <- DCA.Forecast %>%
+  mutate(WellID = user_TCname,
+         TC_Group = user_TCname,
+         Well_Type = "TypeCurve") %>%
+  select(WellID, TC_Group, Well_Type, Time, Gas_mcf, Oil_bbl, 
+         cumOil_mbo, cumGas_mmcf) %>%
+  bind_rows(., prod_tbl1)
+
+
+
 
 ##----------------------------------------------------------------------------
 #input parameters for tcwelllist
@@ -110,15 +133,21 @@ forecast_years
 
 ##create a table for typecurve documenting purposes...create a record
 TC_WellList <- wellheader %>%
-  mutate(TC_Name = CurveName,
+  mutate(TC_Name = user_TCname,
          Norm_Lat_Length = NormalizedLateralLength,
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross) %>%
   select(TC_Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
-         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time)
+         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio_parm = Ratio) %>%
+  left_join(., welltest %>%
+              mutate(WGR_Bbl_MMcf = FlowWater / (FlowGas / 1000), 
+                     WOR_Bbl_Bbl = FlowWater / FlowOil) %>%
+              select(API, FlowOil, FlowGas, FlowWater, WGR_Bbl_MMcf, WOR_Bbl_Bbl, 
+                     ChokeTopDescription, GravityOil, GravityCondensate), by = "API")
+
 
 ##create tbl with forecast parameters
-TC_Parameters <- data.frame(TC_Name = CurveName, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
+TC_Parameters <- data.frame(TC_Name = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
                             MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
@@ -149,7 +178,7 @@ TC_Parameters <- TC_Parameters %>%
 ##load drivers, file location, and name of the table you want to save
 driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}"
 #dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
-dLocation <- "N:/Dept/Prod/Aries/Db/Houston/2017 Projects/A&D/PRESIDIO/ValVerdeTypeCurves.accdb"
+dLocation <- AccessFilePath
 
 ##channel created for connection
 ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
@@ -159,6 +188,7 @@ sqlSave(ch, TC_Groups, tablename = "TC_Groups", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_Cums, tablename = "TC_Cums", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_WellList, tablename = "TC_WellList", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_Parameters, tablename = "TC_Parameters", rownames = FALSE, append = TRUE)
+
 
 
 close(ch)

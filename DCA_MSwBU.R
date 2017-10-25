@@ -121,7 +121,7 @@ t_exp_final2 <- 0:(prod_time - t_trans - 1) #time for dMin decline
 #further work is need to iterate on what the qi and decline would need to be to generate the monthly volumes
 
 ######forecast_exp
-#takes the peak volume and back calc the qi need to produce the peak volumes reported (qi.bu) at a given ai.ms
+#takes the peak volume and back calc the qi need to produce the peak volumes reported (qi_back_calc) at a given ai_ms
 #time start at month 2 as not to duplicate month 1 from forecast.bu
 
 
@@ -139,7 +139,7 @@ DCA <- function(b, di, dMin, di_ms, forecast_years, time_ms)
     if(ms == 1)
     { #multi.segment forecast = ms
       t_ms1 <- seq_len(time_ms)
-      t_ms2 <- t_ms - 1
+      t_ms2 <- t_ms1 - 1
       ai_ms <- -log(1-di_ms)/t_units
       Exp_Np1_ms <- qi_back_calc / ai_ms * (1 - exp(-ai_ms * t_ms1))
       Exp_Np2_ms <- qi_back_calc / ai_ms * (1 - exp(-ai_ms * t_ms2))
@@ -161,10 +161,9 @@ DCA <- function(b, di, dMin, di_ms, forecast_years, time_ms)
       Exp_Np1 - Exp_Np2
       
     }else if(b == 1){
-      ai_har <- (di / (1 - di) / t_units)
-      #Har_Np1 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har))
-      #Har_Np2 <- qi_back_calc / ai_har * log(1 + ai_har * (t_exp_har1))
       
+      ai_har <- (di / (1 - di) / t_units)
+
     ###########forecast to dMin################
       Har_Np_to_dMin1 <- qi_back_calc / ai_har * log(1 + ai_har * (t_trans_seq1))
       Har_Np_to_dMin2 <- qi_back_calc / ai_har * log(1 + ai_har * (t_trans_seq2))

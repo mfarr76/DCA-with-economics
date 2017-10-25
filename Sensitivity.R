@@ -1,12 +1,12 @@
 
 rm(list = ls())
 
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/EconTable.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/econtbl.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 
-####Michael Farr SM Energy 7/5/17####
-###This data function will generate a cash flow model built using Aries cash flow's as a check
+####Michael Farr SM Energy 10/18/17####
+###This data function will generate a cash flow model built using Aries cash flow as a check
 
 ##install package if it is not already installed
 list.of.packages <- c("dplyr", "tibble", "purrr")
@@ -19,8 +19,11 @@ library(tibble, warn.conflicts = FALSE)
 library(purrr, warn.conflicts = FALSE)
 
 
-tc_unique_names <- unique(TCGroups$TC_Name[!is.na(TCGroups$TC_Name)])  #uniques typecurve name and not NA to run economics
+#tc_unique_names <- unique(TCGroups$TC_Name[!is.na(TCGroups$TC_Name)])  #uniques typecurve name and not NA to run economics
+##changed to use Econtable for TC_Name so you don't have to have all the TC_Names populated to run
+tc_unique_names <- unique(EconTable$TC_Name[!is.na(EconTable$TC_Name)]) #uniques typecurve name and not NA to run economics
 capex_mnth <- 1
+
 
 
 
@@ -34,6 +37,7 @@ for(i in seq_along(tc_unique_names))
 
 ##user input from econ table
 EconTable
+
 
 ####get price entered from user input box
 user_price <- data.frame()
@@ -109,7 +113,7 @@ cshflow <- function(x, y, z)
   return(results_cshflow)
 }
 
-test <- cshflow(1, user_price, 1)
+#test <- cshflow(1, user_price, 1)
 
 #cashflow loop for all the TC
 CashFlow <- data.frame()
@@ -122,12 +126,15 @@ for(i in seq_along(tc_unique_names)) #number of time to loop
 #-----------------------------------------
 ##price sensitivity
 
-sensitivity_choice <- "GAS"
-flat_price <- 3
+#sensitivity_phase <- "GAS"
+#flat_price <- 3
 
+##user inputs
+sensitivity_phase
+flat_price
 
 ##generate price file to use for sensitivity analysis
-if(sensitivity_choice == "GAS")
+if(sensitivity_phase == "OIL")
 {
   gPrice <- flat_price
   oPrice <- seq(10, 100, by = 10)
@@ -140,7 +147,7 @@ if(sensitivity_choice == "GAS")
   price <- cbind(gPrice, oPrice, nPrice)
 }
 
-
+price[10,1]
 
 CashFlow.Price <- data.frame()
 for(i in seq_along(tc_unique_names)){
@@ -148,7 +155,7 @@ for(i in seq_along(tc_unique_names)){
   {
     cf_price <- cshflow(i, price, j)
     cf_price$scenario <- paste(price[j,1], '-' ,price[j,2], '-' , price[j,3])
-    cf_price$price <- ifelse(sensitivity_choice == "GAS", price[j,2], price[j, 1]) 
+    cf_price$price <- ifelse(sensitivity_phase == "OIL", price[j,2], price[j, 1]) 
     CashFlow.Price <- rbind(CashFlow.Price , cf_price)
     
   }
@@ -201,7 +208,7 @@ CashFlow.Disc <- CashFlow.Disc %>%
   group_by(TC_Name, Disc_Rate) %>%
   summarise(NPV = sum(NetDiscCF))
 
-#n <-1
+#n <-2
 
 CF_Metrics <- function(n){
   
