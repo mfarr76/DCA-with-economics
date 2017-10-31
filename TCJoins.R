@@ -47,48 +47,31 @@ wellheader #wellheader table to get spacing
 Ratio_parm #yield / gor value used for grouping
 
 
-
-
-#Typecurve name
-#CurveName <- paste(TC.Name, ' -- Spacing', TC.Spacing, ' -- Lbs/Ft', TC.Lbs.Ft)
-#CurveName <- paste(user_TCname)#name comes from user input
-
-##make data types the same
-#prod_tbl$c.Months <- as.numeric(prod_tbl$c.Months)
-#TypeCurve$Time <- as.numeric(TypeCurve$Time)
-
-
-##copy typecurve to a new datatable called "TCGroups"
-#TC_Groups <- DCA.Forecast %>%
-#  mutate(TC_Name = user_TCname) %>%
-#  select(TC_Name, Time, Gas_mcf, Oil_bbl, 
-#         cumOil_mbo, cumGas_mmcf)
-
-
 #############################################################################
 ##copy 12 month cum for every well in the typecurve and name it user_TCname
-CUM_prod <- prod_tbl %>%
+##then copy the 12 month cum for tc and name it CUMTC_user_TCname
+
+TC_Cums <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
-  mutate(TC_Name = user_TCname, 
+  mutate(TC_Name = user_TCname,
+         TC_Group = user_TCname,
          Time = as.numeric(c.Months)) %>%
   select(TC_Name,
+         TC_Group,
          Time, 
          CUM12MOOil = c.Cum.Liquid.Mbo.Norm, 
-         CUM12MOGas = c.Cum.Gas.MMcf.Norm)
-
-##copy the 12 month cum from the typecurve and name it CUMTC
-CUM_tc <- DCA.Forecast %>%
+         CUM12MOGas = c.Cum.Gas.MMcf.Norm) %>%
+  bind_rows(., DCA.Forecast %>%
   filter(Time == 12) %>%
   mutate(TC_Name = paste("CUMTC", user_TCname),
+         TC_Group = user_TCname,
          Time = as.numeric(Time)) %>%
-  select(Time, TC_Name, CUM12MOOil = cumOil_mbo, CUM12MOGas = cumGas_mmcf)
+  select(Time, TC_Group, TC_Name, CUM12MOOil = cumOil_mbo, CUM12MOGas = cumGas_mmcf))
 
-##Combine CUMprod and CUMtc into 1 table called "TC.Cums"
-TC_Cums <- bind_rows(CUM_prod, CUM_tc)
 ##############################################################################
 
 ##create a table with tc with wells
-prod_tbl1 <- prod_tbl %>%
+TC_Groups <- prod_tbl %>%
   filter(!is.na(c.Months)) %>%
   mutate( TC_Group = user_TCname,
           Well_Type = paste("PDP")) %>%
@@ -99,18 +82,13 @@ prod_tbl1 <- prod_tbl %>%
          Gas_mcf = c.Gas.Normalized, 
          Oil_bbl = c.Liquid.Normalized, 
          cumOil_mbo = c.Cum.Liquid.Mbo.Norm, 
-         cumGas_mmcf = c.Cum.Gas.MMcf.Norm)
-
-TC_Groups <- DCA.Forecast %>%
+         cumGas_mmcf = c.Cum.Gas.MMcf.Norm) %>%
+  bind_rows(., DCA.Forecast %>%
   mutate(WellID = user_TCname,
          TC_Group = user_TCname,
          Well_Type = "TypeCurve") %>%
   select(WellID, TC_Group, Well_Type, Time, Gas_mcf, Oil_bbl, 
-         cumOil_mbo, cumGas_mmcf) %>%
-  bind_rows(., prod_tbl1)
-
-
-
+         cumOil_mbo, cumGas_mmcf))
 
 ##----------------------------------------------------------------------------
 #input parameters for tcwelllist
@@ -134,6 +112,8 @@ forecast_years
 ##create a table for typecurve documenting purposes...create a record
 TC_WellList <- wellheader %>%
   mutate(TC_Name = user_TCname,
+         API = as.character(API),
+         Entity = as.character(Entity),
          Norm_Lat_Length = NormalizedLateralLength,
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross) %>%
@@ -141,7 +121,8 @@ TC_WellList <- wellheader %>%
          Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio_parm = Ratio) %>%
   left_join(., welltest %>%
               mutate(WGR_Bbl_MMcf = FlowWater / (FlowGas / 1000), 
-                     WOR_Bbl_Bbl = FlowWater / FlowOil) %>%
+                     WOR_Bbl_Bbl = FlowWater / FlowOil, 
+                     API = as.character(API)) %>%
               select(API, FlowOil, FlowGas, FlowWater, WGR_Bbl_MMcf, WOR_Bbl_Bbl, 
                      ChokeTopDescription, GravityOil, GravityCondensate), by = "API")
 
@@ -167,12 +148,7 @@ TC_Parameters <- TC_Parameters %>%
          Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Dmin, Ratio_segment, Initial_ratio, Second_ratio, 
          Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo)
 
-
-
-##use a blank table to prevent the data function from being removed due to IP script
-#dummytable <- c("Blank")
-
-
+##------------------------------------------------------------------------------------
 ##write to access file
 
 ##load drivers, file location, and name of the table you want to save
