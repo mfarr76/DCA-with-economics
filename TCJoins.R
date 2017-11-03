@@ -9,7 +9,7 @@ library(RODBC, warn.conflicts = FALSE)
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_Monthly_AT.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
 
 #-------------------------------------------------------------------------------
 ##choose which data you want to load....need average data
@@ -25,6 +25,9 @@ Years <- 10
 user_TCname <- c("TEST")
 TC_Spacing <- 300
 TC_Lbs_Ft <- 1500
+prod_tbl 
+DCA.Forecast <- DCA
+NormalizedLateralLength <- 5000
 ##############################################################################
 
 
@@ -44,7 +47,7 @@ wellheader #wellheader table to get spacing
 prod_tbl #production table
 DCA.Forecast #typecurve table
 wellheader #wellheader table to get spacing
-Ratio_parm #yield / gor value used for grouping
+
 
 
 #############################################################################
@@ -59,18 +62,18 @@ TC_Cums <- prod_tbl %>%
   select(TC_Name,
          TC_Group,
          Time, 
-         CUM12MOOil = c.Cum.Liquid.Mbo.Norm, 
-         CUM12MOGas = c.Cum.Gas.MMcf.Norm) %>%
+         CUM12MOOil_Norm = c.Cum.Liquid.Mbo.Norm, 
+         CUM12MOGas_Norm = c.Cum.Gas.MMcf.Norm) %>%
   bind_rows(., DCA.Forecast %>%
   filter(Time == 12) %>%
   mutate(TC_Name = paste("CUMTC", user_TCname),
          TC_Group = user_TCname,
          Time = as.numeric(Time)) %>%
-  select(Time, TC_Group, TC_Name, CUM12MOOil = cumOil_mbo, CUM12MOGas = cumGas_mmcf))
+  select(Time, TC_Name, TC_Group, CUM12MOOil_Norm = cumOil_mbo, CUM12MOGas_Norm = cumGas_mmcf))
 
 ##############################################################################
-
 ##create a table with tc with wells
+
 TC_Groups <- prod_tbl %>%
   filter(!is.na(c.Months)) %>%
   mutate( TC_Group = user_TCname,
@@ -79,16 +82,19 @@ TC_Groups <- prod_tbl %>%
          TC_Group,
          Well_Type, 
          Time = c.Months,
-         Gas_mcf = c.Gas.Normalized, 
-         Oil_bbl = c.Liquid.Normalized, 
-         cumOil_mbo = c.Cum.Liquid.Mbo.Norm, 
-         cumGas_mmcf = c.Cum.Gas.MMcf.Norm) %>%
+         Gas_mcf_Norm = c.Gas.Normalized, 
+         Oil_bbl_Norm = c.Liquid.Normalized, 
+         cumOil_mbo_Norm = c.Cum.Liquid.Mbo.Norm, 
+         cumGas_mmcf_Norm = c.Cum.Gas.MMcf.Norm) %>%
   bind_rows(., DCA.Forecast %>%
-  mutate(WellID = user_TCname,
-         TC_Group = user_TCname,
-         Well_Type = "TypeCurve") %>%
-  select(WellID, TC_Group, Well_Type, Time, Gas_mcf, Oil_bbl, 
-         cumOil_mbo, cumGas_mmcf))
+              mutate(WellID = user_TCname,
+                     TC_Group = user_TCname,
+                     Well_Type = "TypeCurve") %>%
+              select(WellID, TC_Group, Well_Type, Time, 
+                     Gas_mcf_TC = Gas_mcf, Oil_bbl_TC = Oil_bbl, 
+                     cumOil_mbo_TC = cumOil_mbo, 
+                     cumGas_mmcf_TC = cumGas_mmcf, 
+                     WellCount))
 
 ##----------------------------------------------------------------------------
 #input parameters for tcwelllist
@@ -116,9 +122,12 @@ TC_WellList <- wellheader %>%
          Entity = as.character(Entity),
          Norm_Lat_Length = NormalizedLateralLength,
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
-         Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross) %>%
-  select(TC_Name, Entity, API, PerfIntervalGross, ProppantAmountTotal, FluidAmountTotal,
-         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio_parm = Ratio) %>%
+         Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross, 
+         CUM12MOGas_MMcf_Norm = (First12MonthGas / 1000) / PerfIntervalGross * Norm_Lat_Length, 
+         CUM12MOOil_Mbo_Norm = (First12MonthLiquid / 1000) / PerfIntervalGross * Norm_Lat_Length) %>%
+  select(TC_Name, Entity, API, PerfIntervalGross, TotalDepthTVD, ProppantAmountTotal, FluidAmountTotal,
+         Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio, 
+         CUM12MOGas_MMcf_Norm, CUM12MOOil_Mbo_Norm) %>%
   left_join(., welltest %>%
               mutate(WGR_Bbl_MMcf = FlowWater / (FlowGas / 1000), 
                      WOR_Bbl_Bbl = FlowWater / FlowOil, 

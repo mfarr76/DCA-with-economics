@@ -1,4 +1,5 @@
 rm(list = ls())
+
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
@@ -8,6 +9,7 @@ prod_tbl <- read.csv("IHS_PROD.csv")
 
 min_lat <- 1000
 normal_lat <- 5000
+t_select <- 1
 
 write.csv(prod_tbl, file = "prod_tbl.csv")
 ####
@@ -16,11 +18,11 @@ EffLat <- prod_tbl$PerfIntervalGross
 Time <- prod_tbl$c.Production.Date
 Oil <- prod_tbl$Liquid
 Gas <- prod_tbl$Gas
-input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table 
+input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table
 
 
 ##Michael Farr
-#This script will average oil & gas rates based on the primary phase that is selected by the user
+#This script will average oil & gas rates and normalized based on the primary phase that is selected by the user
 
 #----------------------------------------------------------------------------------
 
@@ -34,15 +36,23 @@ library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
 
-##"og_select" document property control allows the user to select OIL (5) or GAS (2) as the primary phase
-##the number convention will be used in the dca portion of the workflow too
-pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
+###property controls...user can change these properties
+prod_tbl #production table
+og_select #oil/gas selection as primary phase
+normal_lat #normalized lateral length
+min_lat #minimum lateral length
+
+
+##"og_select" document property control allows the user to select OIL (1) or GAS (2) as the primary phase
+t_units <- ifelse(t_select == 1, 1, 365/12)
 
 ##filter and rename the production table
 input <- prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
-  mutate(Time = as.POSIXct(as.Date(Time , "%m/%d/%Y"), 
-                           origin = "1970-01-01", tz="UTC")) %>%
+  mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
+                           origin = "1970-01-01", tz="UTC"), 
+         Liquid = as.numeric( Liquid / t_units ), 
+         Gas = as.numeric( Gas / t_units )) %>%
   select(WellId = Entity,
          Time,
          Oil = Liquid, 
@@ -50,7 +60,7 @@ input <- prod_tbl %>%
          EffLat = PerfIntervalGross)
 
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
-if(pPhase == "Oil")
+if(og_select == 5)
 {
   input <- filter(input, Oil > 0 & EffLat > min_lat)
 }else{
@@ -58,17 +68,16 @@ if(pPhase == "Oil")
 }
 
 
-
- ####create table called Average to house the data used for DCA
+####create table called Average to house the data used for DCA
 if(nrow(input) < 1)
 {#in no wells are selected, create an Average table with zeros 
-  Average.Monthly <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
-                        Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0), 
-                        CUMGas = c(0), CUMOil = c(0))
+  AVERAGE.MONTHLY <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
+                                Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0), 
+                                CUMGas = c(0), CUMOil = c(0))
 }else{
   
-  ##################dplyr package used for data wrangling
- AVERAGE.MONTHLY <- input %>%
+##################dplyr package used for data wrangling####################
+  AVERAGE.MONTHLY <- input %>%
     arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
@@ -99,30 +108,10 @@ if(nrow(input) < 1)
               GORP90 = GasP90 / (na_if(OilP90,0) / 1000), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount)
- 
+  
   #######################
   
 }
-
-summarise(AVERAGE.MONTHLY, mean(Oil>0))
-
-mean(AVERAGE.MONTHLY$Oil > 0)
-mean(AVERAGE.MONTHLY)
-
-CUM.OIL.GAS <- input %>%
-  arrange(WellId, 
-          Time) %>%
-  group_by(WellId) %>%
-  mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
-         Months = cumsum(RowCount), 
-         Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
-         Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-         CUMOil1 = cumsum(Oil1),
-         CUMGas1 = cumsum(Gas1)) %>% 
-  group_by(Months) %>%
-  filter(Months == 12) %>%
-  select(Months, CUMOil1, CUMGas1)
-
 
 
 TimeStamp=paste(date(),Sys.timezone())
