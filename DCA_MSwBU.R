@@ -252,7 +252,8 @@ if(nrow(AVERAGE.MONTHLY) == 1)
            cumGas_mmcf, 
            cumOil_mbo) %>%
     left_join(., AVERAGE.MONTHLY %>%
-                select(Time = Months, WellCount), by = "Time")
+                select(Time = Months, WellCount, 
+                       Gas_avg = Gas, Oil_avg = Oil), by = "Time")
   
 }
 

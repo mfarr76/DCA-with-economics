@@ -74,7 +74,7 @@ TC_Cums <- prod_tbl %>%
 ##############################################################################
 ##create a table with tc with wells
 
-TC_Groups <- prod_tbl %>%
+TC_Forecast <- prod_tbl %>%
   filter(!is.na(c.Months)) %>%
   mutate( TC_Group = user_TCname,
           Well_Type = paste("PDP")) %>%
@@ -90,11 +90,11 @@ TC_Groups <- prod_tbl %>%
               mutate(WellID = user_TCname,
                      TC_Group = user_TCname,
                      Well_Type = "TypeCurve") %>%
-              select(WellID, TC_Group, Well_Type, Time, 
+              select(WellID, TC_Group, Well_Type, Time,
+                     Gas_avg, Oil_avg, WellCount,
                      Gas_mcf_TC = Gas_mcf, Oil_bbl_TC = Oil_bbl, 
                      cumOil_mbo_TC = cumOil_mbo, 
-                     cumGas_mmcf_TC = cumGas_mmcf, 
-                     WellCount))
+                     cumGas_mmcf_TC = cumGas_mmcf))
 
 ##----------------------------------------------------------------------------
 #input parameters for tcwelllist
@@ -117,7 +117,7 @@ forecast_years
 
 ##create a table for typecurve documenting purposes...create a record
 TC_WellList <- wellheader %>%
-  mutate(TC_Name = user_TCname,
+  mutate(TC_Group = user_TCname,
          API = as.character(API),
          Entity = as.character(Entity),
          Norm_Lat_Length = NormalizedLateralLength,
@@ -125,7 +125,7 @@ TC_WellList <- wellheader %>%
          Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross, 
          CUM12MOGas_MMcf_Norm = (First12MonthGas / 1000) / PerfIntervalGross * Norm_Lat_Length, 
          CUM12MOOil_Mbo_Norm = (First12MonthLiquid / 1000) / PerfIntervalGross * Norm_Lat_Length) %>%
-  select(TC_Name, Entity, API, PerfIntervalGross, TotalDepthTVD, ProppantAmountTotal, FluidAmountTotal,
+  select(TC_Group, Entity, API, PerfIntervalGross, TotalDepthTVD, ProppantAmountTotal, FluidAmountTotal,
          Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio, 
          CUM12MOGas_MMcf_Norm, CUM12MOOil_Mbo_Norm) %>%
   left_join(., welltest %>%
@@ -137,7 +137,7 @@ TC_WellList <- wellheader %>%
 
 
 ##create tbl with forecast parameters
-TC_Parameters <- data.frame(TC_Name = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
+TC_Parameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
                             MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
@@ -153,7 +153,7 @@ P_phase <- ifelse(TC_Parameters$Primary_phase == "Gas", 2, 3)
 TC_Parameters <- TC_Parameters %>%
   mutate(First_prod_month = DCA.Forecast[1,P_phase],
          qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
-  select(TC_Name, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
+  select(TC_Group, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
          Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Dmin, Ratio_segment, Initial_ratio, Second_ratio, 
          Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo)
 
@@ -169,7 +169,7 @@ dLocation <- AccessFilePath
 ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
 
 ##save function to save table created to access
-sqlSave(ch, TC_Groups, tablename = "TC_Groups", rownames = FALSE, append = TRUE)
+sqlSave(ch, TC_Forecast, tablename = "TC_Forecast", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_Cums, tablename = "TC_Cums", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_WellList, tablename = "TC_WellList", rownames = FALSE, append = TRUE)
 sqlSave(ch, TC_Parameters, tablename = "TC_Parameters", rownames = FALSE, append = TRUE)
