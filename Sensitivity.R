@@ -66,14 +66,14 @@ for(i in seq_along(tc_unique_names))
 ##y = price file name --- user pricefile or sensivity price 
 ##z = row in the matrix --- user only has 1 row -- sensitivity price has 9 rows
 
-TCForecast <- TCForecast %>%
+TcForecast <- TcForecast %>%
   filter(Well_Type == "TypeCurve") %>%
   select(TC_Group, Time, Gas_mcf_TC, Oil_bbl_TC)
 
 cshflow <- function(x, y, z) 
 { #first use subset function (reduce) the TC table (TCGroup) to the first TC in the tc.list
   #do the same for the EconTable to so you have the correct values per TC
-  red_tc <- subset(TCForecast, TC_Group == tc_list[i]); #reduce/filter the typecurves one at a time 
+  red_tc <- subset(TcForecast, TC_Group == tc_list[i]); #reduce/filter the typecurves one at a time 
   red_inputs <- subset(EconTable, TC_Group == tc_list[i]);
   #TCname and date
   TC_Group = red_tc$TC_Group;

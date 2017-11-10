@@ -103,6 +103,8 @@ if(ms == 1){
   qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) ##hyperbolic - #back calc qi based on Np (month 1)
 }
 
+qi.back.calc <- qi_back_calc
+
 ##---------------------------------------------------------------------------
 
 prod_time <- forecast_years * t_units #convert years to months/days

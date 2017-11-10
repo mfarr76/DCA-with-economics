@@ -54,7 +54,7 @@ wellheader #wellheader table to get spacing
 ##copy 12 month cum for every well in the typecurve and name it user_TCname
 ##then copy the 12 month cum for tc and name it CUMTC_user_TCname
 
-TC_Cums <- prod_tbl %>%
+TcCums <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
   mutate(TC_Name = user_TCname,
          TC_Group = user_TCname,
@@ -74,10 +74,11 @@ TC_Cums <- prod_tbl %>%
 ##############################################################################
 ##create a table with tc with wells
 
-TC_Forecast <- prod_tbl %>%
+TcForecast <- prod_tbl %>%
   filter(!is.na(c.Months)) %>%
   mutate( TC_Group = user_TCname,
-          Well_Type = paste("PDP")) %>%
+          Well_Type = paste("PDP"), 
+          c.Months = as.numeric(c.Months)) %>%
   select(WellID = PrimaryWellAPI,
          TC_Group,
          Well_Type, 
@@ -116,11 +117,11 @@ forecast_years
 ##----------------------------------------------------------------------------
 
 ##create a table for typecurve documenting purposes...create a record
-TC_WellList <- wellheader %>%
+TcWellList <- wellheader %>%
   mutate(TC_Group = user_TCname,
          API = as.character(API),
          Entity = as.character(Entity),
-         Norm_Lat_Length = NormalizedLateralLength,
+         Norm_Lat_Length = as.numeric(NormalizedLateralLength),
          Lbs_Ft = ProppantAmountTotal / PerfIntervalGross, 
          Bbl_Ft = (FluidAmountTotal/42) / PerfIntervalGross, 
          CUM12MOGas_MMcf_Norm = (First12MonthGas / 1000) / PerfIntervalGross * Norm_Lat_Length, 
@@ -129,15 +130,21 @@ TC_WellList <- wellheader %>%
          Lbs_Ft, Bbl_Ft, Norm_Lat_Length, Spacing_Avg, Max_Infill_Time, Ratio, 
          CUM12MOGas_MMcf_Norm, CUM12MOOil_Mbo_Norm) %>%
   left_join(., welltest %>%
-              mutate(WGR_Bbl_MMcf = FlowWater / (FlowGas / 1000), 
-                     WOR_Bbl_Bbl = FlowWater / FlowOil, 
+              mutate(WGR_Bbl_MMcf_WellTest = FlowWater / (FlowGas / 1000), 
+                     WOR_Bbl_Bbl_WellTest = FlowWater / FlowOil, 
                      API = as.character(API)) %>%
-              select(API, FlowOil, FlowGas, FlowWater, WGR_Bbl_MMcf, WOR_Bbl_Bbl, 
-                     ChokeTopDescription, GravityOil, GravityCondensate), by = "API")
+              select(API, FlowOil_WellTest = FlowOil,
+                     FlowGas_WellTest = FlowGas, 
+                     FlowWater_WellTest = FlowWater, 
+                     WGR_Bbl_MMcf_WellTest, WOR_Bbl_Bbl_WellTest, 
+                     ChokeTopDescription_WellTest = ChokeTopDescription, 
+                     GravityOil_WellTest = GravityOil, 
+                     GravityCondensate_WellTest = GravityCondensate), by = "API")
+
 
 
 ##create tbl with forecast parameters
-TC_Parameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
+TcParameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
                             MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
@@ -147,10 +154,10 @@ TC_Parameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_se
                             Oil_EUR_mbo = max(DCA.Forecast$cumOil_mbo, na.rm = TRUE))
 
 ##establish the primary phase
-P_phase <- ifelse(TC_Parameters$Primary_phase == "Gas", 2, 3)
+P_phase <- ifelse(TcParameters$Primary_phase == "Gas", 2, 3)
 
 ##create first prod mnth and qi month (time to peak mnth)
-TC_Parameters <- TC_Parameters %>%
+TcParameters <- TcParameters %>%
   mutate(First_prod_month = DCA.Forecast[1,P_phase],
          qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
   select(TC_Group, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
@@ -169,10 +176,10 @@ dLocation <- AccessFilePath
 ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
 
 ##save function to save table created to access
-sqlSave(ch, TC_Forecast, tablename = "TC_Forecast", rownames = FALSE, append = TRUE)
-sqlSave(ch, TC_Cums, tablename = "TC_Cums", rownames = FALSE, append = TRUE)
-sqlSave(ch, TC_WellList, tablename = "TC_WellList", rownames = FALSE, append = TRUE)
-sqlSave(ch, TC_Parameters, tablename = "TC_Parameters", rownames = FALSE, append = TRUE)
+sqlSave(ch, TcForecast, tablename = "TcForecast", rownames = FALSE, append = TRUE)
+sqlSave(ch, TcCums, tablename = "TcCums", rownames = FALSE, append = TRUE)
+sqlSave(ch, TcWellList, tablename = "TcWellList", rownames = FALSE, append = TRUE)
+sqlSave(ch, TcParameters, tablename = "TcParameters", rownames = FALSE, append = TRUE)
 
 
 
