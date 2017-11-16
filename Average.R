@@ -41,26 +41,29 @@ prod_tbl #production table
 og_select #oil/gas selection as primary phase
 normal_lat #normalized lateral length
 min_lat #minimum lateral length
-
+t_select <- 1 #set time units to months
 
 ##"og_select" document property control allows the user to select OIL (1) or GAS (2) as the primary phase
+#pPhase <- ifelse(og_select == 6, "Oil", "Gas") 
 t_units <- ifelse(t_select == 1, 1, 365/12)
 
 ##filter and rename the production table
 input <- prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
   mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
-                           origin = "1970-01-01", tz="UTC"), 
+                           origin = "1970-01-01", tz = "UTC"), 
          Liquid = as.numeric( Liquid / t_units ), 
          Gas = as.numeric( Gas / t_units )) %>%
   select(WellId = Entity,
          Time,
          Oil = Liquid, 
-         Gas = Gas, 
+         Gas, 
          EffLat = PerfIntervalGross)
 
+input[input == 0] <- NA
+
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
-if(og_select == 5)
+if(og_select == 6)
 {
   input <- filter(input, Oil > 0 & EffLat > min_lat)
 }else{
@@ -76,36 +79,44 @@ if(nrow(input) < 1)
                                 CUMGas = c(0), CUMOil = c(0))
 }else{
   
-##################dplyr package used for data wrangling####################
-  AVERAGE.MONTHLY <- input %>%
+  ##################dplyr package used for data wrangling####################
+  AVERAGE.MONTHLY1 <- input %>%
     arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
     mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
            Months = cumsum(RowCount), 
            Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
-           Gas1 = Gas / EffLat * normal_lat, #normalized to effective lateral
-           CUMOil1 = cumsum(Oil1),
-           CUMGas1 = cumsum(Gas1)) %>% 
-    group_by(Months) %>%
-    summarise(Gas = mean(Gas1[Gas1 > 0]), #mcf
-              GasP10 = quantile(Gas1[Gas1 > 0], p = 0.90), #mcf
-              GasP90 = quantile(Gas1[Gas1 > 0], p = 0.10), #mcf
-              Oil = mean(Oil1[Oil1 > 0]), #bbl
-              OilP10 = quantile(Oil1[Oil1 > 0], p = 0.90), #bbl 
-              OilP90 = quantile(Oil1[Oil1 > 0], p = 0.10), #bbl
-              CUMGas = mean(CUMGas1[CUMGas1 > 0]) / 1000, #mmcf
-              CUMGasP10 = quantile(CUMGas1[CUMGas1 > 0], p = 0.90) / 1000, #mmcf
-              CUMGASP90 = quantile(CUMGas1[CUMGas1 > 0], p = 0.10) / 1000, #mmcf
-              CUMOil = mean(CUMOil1[CUMOil1 > 0]) / 1000, #mbo
-              CUMOilP10 = quantile(CUMOil1[CUMOil1 > 0], p = 0.90) / 1000, #mbo,
-              CUMOilP90 = quantile(CUMOil1[CUMOil1 > 0], p = 0.10) / 1000, #mbo,
-              Yield = Oil / (Gas / 1000), #bbl/mmcf
-              YieldP10 = OilP10 / (GasP10 / 1000), #bbl/mmcf 
-              YieldP90 = OilP90 / (GasP90 / 1000), #bbl/mmcf
-              GOR = Gas / (na_if(Oil,0) / 1000),  #scf/bbl
-              GORP10 = GasP10 / (na_if(OilP10, 0) / 1000), #scf/bbl 
-              GORP90 = GasP90 / (na_if(OilP90,0) / 1000), #scf/bbl
+           Gas1 = Gas / EffLat * normal_lat,
+           Yield1 = ifelse( !is.na(Oil) & !is.na(Gas), Oil / ( Gas / 1000 ), NA), #bbl/mmcf
+           GOR1 = ifelse( !is.na(Oil) & !is.na(Gas), ( Gas * 1000 ) / Oil, NA), #scf/bbl
+           CUMOil1 = cumsum(ifelse( !is.na(Oil1), Oil1, 0 )),
+           CUMGas1 = cumsum(ifelse( !is.na(Gas1), Gas1, 0 ))) %>% 
+    group_by( Months ) %>%
+    summarise(Gas_avg = mean(Gas1, na.rm = TRUE), #mcf
+              Gas_p10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
+              Gas_p50 = median(Gas1, na.rm = TRUE), #mcf
+              Gas_p90 = quantile(Gas1, p = 0.10, na.rm = TRUE), #mcf
+              Oil_avg = mean(Oil1, na.rm = TRUE), #bbl
+              Oil_p10 = quantile(Oil1, p = 0.90, na.rm = TRUE), #bbl
+              Oil_p50 = median(Oil1, na.rm = TRUE), #bbl
+              Oil_p90 = quantile(Oil1, p = 0.10, na.rm = TRUE), #bbl
+              CUMGas_avg = mean(CUMGas1) / 1000, #mmcf
+              CUMGas_p10 = quantile(CUMGas1, p = 0.90) / 1000, #mmcf
+              CUMGas_p50 = median(CUMGas1) / 1000, #mmcf
+              CUMGas_p90 = quantile(CUMGas1, p = 0.10) / 1000, #mmcf
+              CUMOil_avg = mean(CUMOil1) / 1000, #mbo
+              CUMOil_p10 = quantile(CUMOil1, p = 0.90) / 1000, #mbo,
+              CUMOil_p50 = median(CUMOil1) / 1000, #mbo
+              CUMOil_p90 = quantile(CUMOil1, p = 0.10) / 1000, #mbo,
+              Yield_avg = mean(Yield1, na.rm = TRUE), #bbl/mmcf
+              #YieldP_10 = quantile(Yield1, p = 0.90, na.rm = TRUE), #bbl/mmcf 
+              #Yield_p50 = median(Yield1, na.rm = TRUE), #bbl/mmcf 
+              #Yield_p90 = quantile(Yield1, p = 0.10, na.rm = TRUE), #bbl , #bbl/mmcf
+              GOR_avg = mean(GOR1, na.rm = TRUE),  #scf/bbl
+              #GOR_p10 = quantile(GOR1, p = 0.90, na.rm = TRUE), #scf/bbl 
+              #GOR_p50 = median(GOR1, na.rm = TRUE),  #scf/bbl
+              #GOR_p90 = quantile(GOR1, p = 0.10, na.rm = TRUE), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount)
   

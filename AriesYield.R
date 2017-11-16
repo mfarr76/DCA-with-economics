@@ -1,17 +1,18 @@
 rm(list = ls())
 forecast_years <- 30
 forecast_time <- 30*12
-time_segment <- 10
-ratio_1_user <- 200
-ratio_2_user <- 110
-ratio_3_user <- 100
+time_segment <- 7
+ratio_1_user <- 500
+ratio_2_user <- 1300
+ratio_3_user <- 1300
 mnth_day_select <- 1
 og_select <- 1
 
-time_units <- ifelse(mnth_day_select == 1, 12, 365)
-forecast_time <- forecast_years * time_units
+#time_units <- ifelse(mnth_day_select == 1, 12, 365)
 
-
+forecast_time <- forecast_years * 12
+time_segment <- as.integer(20*30.44)
+GOR1T
 
 aries_yield <- function(forecast_time, time_segment, ratio_1_user, ratio_2_user, ratio_3_user)
 {
@@ -68,35 +69,72 @@ YieldForecast <- data.frame(Time = as.numeric(seq_along(1:forecast_time)), secon
 
 
 
+GORi <- 500
+GOR1 <- 1300
+GORf <- 1300
+GOR1T <- 7
+GORfT <- 7
 
-
-y.inc <- (yield.2 - yield.1)/time.1
-
-y.inc2 <- c(y.inc/2, rep(140, times = (time.1-1)))
-
-y.inc2
-rm(y2)
-
-y1 <- yield.1 + y.inc2[1]
-y2 <- y1 + y.inc2[2]
-y3 <- y2 + y.inc2[3]
-i <- 2
-
-y.fun <- function(x, y)
-  
-  i <- 2
-
-y1 <- vector("double", 11)
-for(i in 1:11){
-  if(i == 1){y1 <- yield.1 + y.inc2[1]
-  }else{
-    y1[i] <- y1[i-1] + y.inc2[i]
-  }
+TC_GOR <- function(GORi,GOR1,GORf,GOR1T,GORfT)
+{
+  ProdData <- data.frame( "Time" = seq(1:(52*365.25)))
+  #GOR1T <- as.integer(GOR1T * 30.44)
+  GOR1T <- as.integer(GOR1T)
+  #GORfT <- as.integer(GORfT * 30.44)
+  GORfT <- as.integer(GORfT)
+  Slope1 <- (log10(GOR1)-log10(GORi))/GOR1T
+  b1 <- 10^(log10(GOR1)-Slope1*GOR1T)	
+  Slope2 <- (log10(GORf)-log10(GOR1))/GORfT
+  b2 <- 10^(log10(GORf)-Slope2*(GOR1T+GORfT))
+  ProdData$Y <- ifelse(ProdData$Time<GOR1T,10^(Slope1*ProdData$Time+log10(b1)),
+                       ifelse(ProdData$Time>=GOR1T & ProdData$Time<(GOR1T+GORfT),10^(Slope2*ProdData$Time+log10(b2)),
+                              GORf))
+  return(ProdData)
 }
-y1
+plot(ProdData)
+
+ProdData <- TC_GOR(500, 1300, 1300, 7, 7)
+rm(ProdDate)
 
 
 
-length(y1)
+rForecast <- function(forecast_time, t1Segment, ratio1, ratio2, ratio3)
+{
+  ##1st segment##
+  a1 <- if( ratio1 == 0 ) { 0
+  }else{
+    log( ratio1 / ratio2 ) / t1Segment } ##calc nominal decline
+  t1 <- seq_along(1 : t1Segment) #length of 1st segment
+  
+  ##ratio for the month 
+  ##if true then flat yield
+  r1_forecast <- if( ratio1 == ratio2 ){ 
+    ratio1
+  }else{
+    ( ratio1 * exp( -a1 * (t1 - 1)) - 
+        ratio1 * exp( -a1 * t1))/a1
+  }
+  
+  ###2nd segment
+  t2 <- forecast_time - t1Segment
+  t3 <- seq_along( 1 : t2 )
+  
+  ###check to see if flat yield for 2nd seg
+  ###if true then append r.1 to flat forecast
+  if( ratio2 == ratio3 ){
+    append( r1_forecast, (rep(ratio2, t2)))
+  } else {
+    a2 <- log( ratio2 / ratio3 ) / t2 ###calc nominal decline
+    
+    ###ratio for the month
+    r2_forecast <- ( ratio2 * exp( -a2 * (t3 - 1)) - 
+                       ratio2 * exp( -a2 * t3)) / a2
+    
+    ###append gor/yield forecast
+    c( r1_forecast,r2_forecast )
+    
+  }
+  
+}
 
- 
+rForecast(30, 7, 500, 1300, 1300)

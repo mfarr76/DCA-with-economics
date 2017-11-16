@@ -15,7 +15,7 @@ abRate <- 1
 time_ms <- 3
 di_ms <- 90
 og_select <- 2
-curve_select <- 0
+curve_select <- 3
 write.csv(AVERAGE.MONTHLY, file = "prod.csv")
 write.csv(DCA.Forecast, file = "dca.csv")
 ###########################################################################################################
@@ -238,8 +238,8 @@ if(nrow(AVERAGE.MONTHLY) == 1)
   
 }else{
   DCA.Forecast <- left_join(DCA.Forecast, YieldForecast, by = c("Time")) %>%
-    mutate(Gas_mcf = if(og_select == 5){primary/1000 * secondary}else{primary}, #mcf
-           Oil_bbl = if(og_select == 5){primary}else{primary * secondary/1000}, #bbl
+    mutate(Gas_mcf = if(og_select == 6){primary/1000 * secondary}else{primary}, #mcf
+           Oil_bbl = if(og_select == 6){primary}else{primary * secondary/1000}, #bbl
            Gas_mcf_d = Gas_mcf / ( 365 / 12 ), #mcf/d
            Oil_bbl_d = Oil_bbl / ( 365 / 12 ), #bbl/d
            Ratio = secondary,
@@ -255,7 +255,7 @@ if(nrow(AVERAGE.MONTHLY) == 1)
            cumOil_mbo) %>%
     left_join(., AVERAGE.MONTHLY %>%
                 select(Time = Months, WellCount, 
-                       Gas_avg = Gas, Oil_avg = Oil), by = "Time")
+                       Gas_avg, Oil_avg), by = "Time")
   
 }
 
