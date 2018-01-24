@@ -31,8 +31,8 @@ list.of.packages <- c("dplyr", "tibble")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
 
-##load package
-library(dplyr, warn.conflicts = FALSE)
+##load packagelibrary(dplyr, warn.conflicts = FALSE)
+
 library(tibble, warn.conflicts = FALSE)
 
 
@@ -44,11 +44,11 @@ min_lat #minimum lateral length
 t_select <- 1 #set time units to months
 
 ##"og_select" document property control allows the user to select OIL (1) or GAS (2) as the primary phase
-#pPhase <- ifelse(og_select == 6, "Oil", "Gas") 
+#pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
 t_units <- ifelse(t_select == 1, 1, 365/12)
 
 ##filter and rename the production table
-input <- prod_tbl %>%
+  prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
   mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
                            origin = "1970-01-01", tz = "UTC"), 
@@ -60,7 +60,7 @@ input <- prod_tbl %>%
          Gas, 
          EffLat = PerfIntervalGross)
 
-input[input == 0] <- NA
+
 
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(og_select == 6)
@@ -72,15 +72,19 @@ if(og_select == 6)
 
 
 ####create table called Average to house the data used for DCA
-if(nrow(input) < 1)
+if(nrow(input) == 0)
 {#in no wells are selected, create an Average table with zeros 
-  AVERAGE.MONTHLY <- data.frame(WellName = c("None"), Time = c(Sys.time()), 
-                                Oil = c(0), Gas = c(0), EffLat = c(0), Months = c(0), WellCount = c(0), 
-                                CUMGas = c(0), CUMOil = c(0))
+  AVERAGE.MONTHLY <- data.frame(WellName = c("None"), Time = Sys.time(),
+                                EffLat = 0, Months = 0, WellCount = 0,
+                                Gas_avg = 0, Gas_p10 = 0, Gas_p50 = 0, Gas_p90 = 0, 
+                                Oil_avg = 0, Oil_p10 = 0, Oil_p50 = 0, Oil_p90 = 0, 
+                                CUMGas_avg = 0, CUMGas_p10 = 0, CUMGas_p50 = 0, CUMGas_P90 = 0, 
+                                CUMOil_avg = 0, CUMOil_p10 = 0, CUMOil_p50 = 0, CUMOil_p90 = 0, 
+                                Yield_avg = 0, GOR_avg = 0)
 }else{
   
   ##################dplyr package used for data wrangling####################
-  AVERAGE.MONTHLY1 <- input %>%
+  AVERAGE.MONTHLY <- input %>%
     arrange(WellId, 
             Time) %>%
     group_by(WellId) %>%
@@ -118,7 +122,9 @@ if(nrow(input) < 1)
               #GOR_p50 = median(GOR1, na.rm = TRUE),  #scf/bbl
               #GOR_p90 = quantile(GOR1, p = 0.10, na.rm = TRUE), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
-    filter(WellCount > minWellcount)
+    filter(WellCount > minWellcount) %>%
+    mutate_if(is.integer, as.numeric) %>%
+    mutate_if(is.character, as.factor)
   
   #######################
   

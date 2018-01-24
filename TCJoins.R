@@ -69,7 +69,9 @@ TcCums <- prod_tbl %>%
   mutate(TC_Name = paste("CUMTC", user_TCname),
          TC_Group = user_TCname,
          Time = as.numeric(Time)) %>%
-  select(Time, TC_Name, TC_Group, CUM12MOOil_Norm = cumOil_mbo, CUM12MOGas_Norm = cumGas_mmcf))
+  select(Time, TC_Name, TC_Group, CUM12MOOil_Norm = cumOil_mbo, CUM12MOGas_Norm = cumGas_mmcf)) %>%
+  mutate_if(is.integer, as.numeric) %>%
+  mutate_if(is.character, as.factor)
 
 ##############################################################################
 ##create a table with tc with wells
@@ -95,7 +97,9 @@ TcForecast <- prod_tbl %>%
                      Gas_avg, Oil_avg, WellCount,
                      Gas_mcf_TC = Gas_mcf, Oil_bbl_TC = Oil_bbl, 
                      cumOil_mbo_TC = cumOil_mbo, 
-                     cumGas_mmcf_TC = cumGas_mmcf))
+                     cumGas_mmcf_TC = cumGas_mmcf)) %>%
+  mutate_if(is.integer, as.numeric) %>%
+  mutate_if(is.character, as.factor)
 
 ##----------------------------------------------------------------------------
 #input parameters for tcwelllist
@@ -132,14 +136,19 @@ TcWellList <- wellheader %>%
   left_join(., welltest %>%
               mutate(WGR_Bbl_MMcf_WellTest = FlowWater / (FlowGas / 1000), 
                      WOR_Bbl_Bbl_WellTest = FlowWater / FlowOil, 
-                     API = as.character(API)) %>%
+                     API = as.character(API), 
+                     Rsi_Scf_Bbl = (FlowGas * 1000) / FlowOil) %>%
               select(API, FlowOil_WellTest = FlowOil,
                      FlowGas_WellTest = FlowGas, 
-                     FlowWater_WellTest = FlowWater, 
-                     WGR_Bbl_MMcf_WellTest, WOR_Bbl_Bbl_WellTest, 
+                     FlowWater_WellTest = FlowWater,
+                     Rsi_Scf_Bbl,
+                     WGR_Bbl_MMcf_WellTest, 
+                     WOR_Bbl_Bbl_WellTest, 
                      ChokeTopDescription_WellTest = ChokeTopDescription, 
                      GravityOil_WellTest = GravityOil, 
-                     GravityCondensate_WellTest = GravityCondensate), by = "API")
+                     GravityCondensate_WellTest = GravityCondensate), by = "API") %>%
+  mutate_if(is.integer, as.numeric) %>%
+  mutate_if(is.character, as.factor)
 
 
 
@@ -162,7 +171,9 @@ TcParameters <- TcParameters %>%
          qi_month = DCA.Forecast$Time[which.max(DCA.Forecast[,P_phase])]) %>%
   select(TC_Group, Primary_phase, Curve_description, Min_lat_length, Norm_lat_length, 
          Min_well_count, First_prod_month, qi_month, qi, MS_On_Off, MS_Time, MS_Di, Di, b, Dmin, Ratio_segment, Initial_ratio, Second_ratio, 
-         Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo)
+         Final_ratio, Ab_rate, Forecast_years, Gas_EUR_mmcf, Oil_EUR_mbo) %>%
+  mutate_if(is.integer, as.numeric) %>%
+  mutate_if(is.character, as.factor)
 
 ##------------------------------------------------------------------------------------
 ##write to access file
