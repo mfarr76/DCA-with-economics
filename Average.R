@@ -1,5 +1,7 @@
 rm(list = ls())
 
+##load spotfire data===================================================================
+
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
@@ -24,7 +26,7 @@ input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table
 ##Michael Farr
 #This script will average oil & gas rates and normalized based on the primary phase that is selected by the user
 
-#----------------------------------------------------------------------------------
+#install.packages=========================================================================
 
 ##install package if it is not already installed
 list.of.packages <- c("dplyr", "tibble")
@@ -36,7 +38,7 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 library(tibble, warn.conflicts = FALSE)
 
 
-###property controls...user can change these properties
+##property controls...user can change these properties====================================
 prod_tbl #production table
 og_select #oil/gas selection as primary phase
 normal_lat #normalized lateral length
@@ -47,7 +49,7 @@ t_select <- 1 #set time units to months
 #pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
 t_units <- ifelse(t_select == 1, 1, 365/12)
 
-##filter and rename the production table
+##filter and rename the production table==================================================
   prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
   mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
@@ -60,8 +62,6 @@ t_units <- ifelse(t_select == 1, 1, 365/12)
          Gas, 
          EffLat = PerfIntervalGross)
 
-
-
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(og_select == 6)
 {
@@ -71,7 +71,7 @@ if(og_select == 6)
 }
 
 
-####create table called Average to house the data used for DCA
+##create average table===================================================================
 if(nrow(input) == 0)
 {#in no wells are selected, create an Average table with zeros 
   AVERAGE.MONTHLY <- data.frame(WellName = c("None"), Time = Sys.time(),
@@ -125,11 +125,8 @@ if(nrow(input) == 0)
     filter(WellCount > minWellcount) %>%
     mutate_if(is.integer, as.numeric) %>%
     mutate_if(is.character, as.factor)
-  
-  #######################
-  
 }
-
+##end script==============================================================================
 
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)

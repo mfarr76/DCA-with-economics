@@ -31,7 +31,7 @@ NormalizedLateralLength <- 5000
 ##############################################################################
 
 
-
+#####install package===============================================================
 ##install package if it is not already installed
 list.of.packages <- c("dplyr", "tibble")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -48,9 +48,13 @@ prod_tbl #production table
 DCA.Forecast #typecurve table
 wellheader #wellheader table to get spacing
 
+##user inputs
+user_TCname #name of TC group - input box on DCA tab
 
 
-#############################################################################
+
+
+#####TcCums table================================================================
 ##copy 12 month cum for every well in the typecurve and name it user_TCname
 ##then copy the 12 month cum for tc and name it CUMTC_user_TCname
 
@@ -73,8 +77,15 @@ TcCums <- prod_tbl %>%
   mutate_if(is.integer, as.numeric) %>%
   mutate_if(is.character, as.factor)
 
-##############################################################################
-##create a table with tc with wells
+#####TcForecast==================================================================
+##create a table with every well in TC (for documentation) and the average curve of all the wells
+##copy over the TC generated from the DCA tab
+##Gas_mcf_Norm = rate time of every producing well
+##cumGas_mmcf_Norm = cum time of every producing well
+##Gas_avg = average rate per TC group
+##WellCount = well count over time
+##Gas_mcf_TC = TC of gas phase in mcf
+##cumGas_mmcf = cum TC of has phase in mmcf
 
 TcForecast <- prod_tbl %>%
   filter(!is.na(c.Months)) %>%
@@ -101,7 +112,7 @@ TcForecast <- prod_tbl %>%
   mutate_if(is.integer, as.numeric) %>%
   mutate_if(is.character, as.factor)
 
-##----------------------------------------------------------------------------
+#####user inputs for TcWellList====================================================
 #input parameters for tcwelllist
 #TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years
 og_select
@@ -118,7 +129,9 @@ ratio_1_user
 ratio_2_user
 ratio_3_user
 forecast_years
-##----------------------------------------------------------------------------
+
+
+#####TcWellList=====================================================================
 
 ##create a table for typecurve documenting purposes...create a record
 TcWellList <- wellheader %>%
@@ -151,8 +164,8 @@ TcWellList <- wellheader %>%
   mutate_if(is.character, as.factor)
 
 
+#####create tbl with forecast parameters==================================================
 
-##create tbl with forecast parameters
 TcParameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
                             Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
@@ -175,13 +188,14 @@ TcParameters <- TcParameters %>%
   mutate_if(is.integer, as.numeric) %>%
   mutate_if(is.character, as.factor)
 
-##------------------------------------------------------------------------------------
-##write to access file
+##write to access file============================================================
+##user must have a odbc data source "Microsoft Access Driver (*.mdb, *.accdb)
+##installed on their machine to communicate with Access
 
 ##load drivers, file location, and name of the table you want to save
-driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}"
+driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}" ##load the odbc driver
 #dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
-dLocation <- AccessFilePath
+dLocation <- AccessFilePath ##file path from input table
 
 ##channel created for connection
 ch <- odbcDriverConnect(paste(driver,';DBQ=',dLocation))
@@ -192,10 +206,17 @@ sqlSave(ch, TcCums, tablename = "TcCums", rownames = FALSE, append = TRUE)
 sqlSave(ch, TcWellList, tablename = "TcWellList", rownames = FALSE, append = TRUE)
 sqlSave(ch, TcParameters, tablename = "TcParameters", rownames = FALSE, append = TRUE)
 
-
-
 close(ch)
 
+##save script to file============================================================
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
 if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/tcgroup.RData',sep=''), RFormat=T )))
+
+
+##end of script==================================================================
+
+
+
+
+
