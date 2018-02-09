@@ -3,20 +3,17 @@ rm(list = ls())
 library(dplyr, warn.conflicts = FALSE)
 library(RODBC, warn.conflicts = FALSE)
 
-#########################LOAD - TESTING ONLY#################################
-##
-
+##load data files================================================================
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
 
-#-------------------------------------------------------------------------------
 ##choose which data you want to load....need average data
 #prod <- load("C:/Users/MFARR/Google Drive/r scripts/Spotfire/average.in.RData")
 prod_tbl <- read.csv("C:/Users/MFARR/Google Drive/r scripts/Production/IHS.PROD.csv")
-#-------------------------------------------------------------------------------
 
+##do not load into spotfire=========================================================
 qi <- 5000
 b <- 1.2
 Di <- 70
@@ -28,11 +25,10 @@ TC_Lbs_Ft <- 1500
 prod_tbl 
 DCA.Forecast <- DCA
 NormalizedLateralLength <- 5000
-##############################################################################
 
 
-#####install package===============================================================
-##install package if it is not already installed
+##install packageif it is not already installed====================================
+
 list.of.packages <- c("dplyr", "tibble")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
@@ -51,10 +47,7 @@ wellheader #wellheader table to get spacing
 ##user inputs
 user_TCname #name of TC group - input box on DCA tab
 
-
-
-
-#####TcCums table================================================================
+##TcCums table==================================================================
 ##copy 12 month cum for every well in the typecurve and name it user_TCname
 ##then copy the 12 month cum for tc and name it CUMTC_user_TCname
 
@@ -77,7 +70,7 @@ TcCums <- prod_tbl %>%
   mutate_if(is.integer, as.numeric) %>%
   mutate_if(is.character, as.factor)
 
-#####TcForecast==================================================================
+##TcForecast====================================================================
 ##create a table with every well in TC (for documentation) and the average curve of all the wells
 ##copy over the TC generated from the DCA tab
 ##Gas_mcf_Norm = rate time of every producing well
@@ -112,7 +105,7 @@ TcForecast <- prod_tbl %>%
   mutate_if(is.integer, as.numeric) %>%
   mutate_if(is.character, as.factor)
 
-#####user inputs for TcWellList====================================================
+##user inputs for TcWellList=======================================================
 #input parameters for tcwelllist
 #TC_qi, TC_b, TC_Di, TC_Dmin, TC_Years
 og_select
@@ -131,8 +124,7 @@ ratio_3_user
 forecast_years
 
 
-#####TcWellList=====================================================================
-
+##TcWellList=======================================================================
 ##create a table for typecurve documenting purposes...create a record
 TcWellList <- wellheader %>%
   mutate(TC_Group = user_TCname,
@@ -164,7 +156,7 @@ TcWellList <- wellheader %>%
   mutate_if(is.character, as.factor)
 
 
-#####create tbl with forecast parameters==================================================
+##create tbl with forecast parameters=====================================================
 
 TcParameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),

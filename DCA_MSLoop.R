@@ -3,138 +3,176 @@ library(dplyr)
 
 
 ###load for testing
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-econTbl <- read.csv("econTbl.csv", stringsAsFactors = FALSE)
+#load("C:/Users/MFARR/Documents/R_files/Spotfire_data/average_RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire_data/tbl4r_RData")
+forecast_parm <- read.csv("forecast_parm.csv", stringsAsFactors = FALSE)
+
 
 
 #qi <- 100000
-#b <- 1.1
-#Di <- .75
-#Dmin <- .10
-forecast.years <- 30
-Day.Month = "Months"
-#t.units <- ifelse(Day.Month == "Months", 12, 365)
-t.units <- 12
-prod.time <- forecast.years * t.units
+#b <- 1_1
+#Di <- _75
+#dmin <- _10
+forecast_years <- 30
+Day_Month = "Months"
+#t_units <- ifelse(Day_Month == "Months", 12, 365)
+t_units <- 12
+prod_time <- forecast_years * t_units
 abRate <- 150
-pPhase <- quote(Oil)
-ms <- 1 #multisegment forecast 1 = On 2 = Off
-#time.ms <- 10 #time for multisegment forecast
-#di.ms <- .1 #decline for multisgement decline
+#pPhase <- quote(Oil)
+ms <- 2 #multisegment forecast 1 = On 2 = Off
+#time_ms <- 10 #time for multisegment forecast
+#di_ms <- _1 #decline for multisgement decline
 
-wellnames <- unique(econTbl$tcName[!is.na(econTbl$tcName)])
-tc.num <- 1
+##create list with wellnames===============================================================
+wellnames <- unique(forecast_parm$tcName[!is.na(forecast_parm$tcName)])
+tc_num <- 1
 
-tc.list <- list()
+tc_list <- list()
 for(i in seq_len(length(wellnames)))
 {
-  tc.list[i] <- list(wellnames[i])
+  tc_list[i] <- list(wellnames[i])
 }
 
-t <- seq_len(prod.time)
+t <- seq_len(prod_time)
 t2 <- t - 1
 
-##dca setup for no buildup with multi forecast to loop through
-DCA <- function(tc.num)
+##dca setup for no buildup with multi forecast to loop through===============================
+DCA <- function(tc_num)
 {
-  user.parms <- subset(econTbl, tcName == tc.list[tc.num])
-  qi <- as.numeric(user.parms[12]);
-  time.ms <- as.numeric(user.parms[13]);
-  di.ms <- as.numeric(user.parms[14]);
-  Di <- as.numeric(user.parms[15]);
-  b <- as.numeric(user.parms[16]);
-  Dmin <- as.numeric(user.parms[17]);
+  user_parms <- subset(forecast_parm, tcName == tc_list[tc_num]);
+  qi <- as.numeric(user_parms[2]);
+  time_ms <- as.numeric(user_parms[3]);
+  di_ms <- as.numeric(user_parms[4]);
+  b <- as.numeric(user_parms[5]);
+  di <- as.numeric(user_parms[6]);
+  dmin <- as.numeric(user_parms[7]);
   
   #Di <- Di/100
-  #Dmin <- Dmin/100
+  #dmin <- dmin/100
   
   
-  forecast.exp <-
+  forecast_exp <-
     if(ms == 1)
-    { #multi.segment forecast = ms
-      t.ms <- seq_len(time.ms)
-      t.ms2 <- t.ms - 1
-      ai.ms <- -log(1 - di.ms) / t.units
-      qi.bu <- qi/(1 - exp(-ai.ms))*ai.ms ##qi back calc from di.ms and qi from average tbl
-      Exp.Np1.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms))
-      Exp.Np2.ms <- qi.bu / ai.ms * (1 - exp(-ai.ms * t.ms2))
-      exp.ms <- Exp.Np1.ms - Exp.Np2.ms
+    { #multi_segment forecast = ms
+      t_ms <- seq_len(time_ms)
+      t_ms2 <- t_ms - 1 
+      ai_ms <- -log(1 - di_ms) / t_units      #nominal decline
+      qi_bu <- qi/(1 - exp(-ai_ms))*ai_ms     #qi back calc from di_ms and qi from average tbl
       
-      #t <- seq(time.ms, prod.time)
-      #t2 <- t - 1
-      qi <- qi.bu * exp(-ai.ms * (time.ms))
-      exp.ms
+      exp_ms <- qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms)) - 
+        qi_bu / ai_ms * (1 - exp(-ai_ms * t_ms2))
+
+      qi <- qi_bu * exp(-ai_ms * (time_ms))
+      exp_ms
     }  
-  #c(forecast.bu, exp.ms)
   
-  forecast.hyp <- 
+  
+  forecast_hyp <- 
     if(b == 0){
+      t_exp_har1 <- seq_len(prod_time)        #time units for exp and har declines
+      t_exp_har2 <- t_exp_har1 - 1            #time units for exp and har declines
       
-      ai.exp <- -log( 1 - di ) / t.units
-      #qi.exp <- (qi * ai.exp) / (log(1 + ai.exp))
-      Exp.Np1 <- qi / ai.exp * (1 - exp(-ai.exp * (t.exp.har)))
-      Exp.Np2 <- qi / ai.exp * (1 - exp(-ai.exp * (t.exp.har1)))
-      
-      #exp <- data.frame(time = t.exp, prod.vol = Exp.Np1 - Exp.Np2)
-      Exp.Np1 - Exp.Np2
+      ai_exp <- -log( 1 - di ) / t_units
+      qi / ai_exp * (1 - exp(-ai_exp * (t_exp_har1))) - 
+        qi / ai_exp * (1 - exp(-ai_exp * (t_exp_har2)))
       
     }else if(b == 1){
       
-      ai.har <- (di / (1 - di) / t.units)
-      #qi.har <- (qi * ai.har) / (log(1 + ai.har))
-      Har.Np1 <- qi / ai.har * log(1 + ai.har * (t.exp.har))
-      Har.Np2 <- qi / ai.har * log(1 + ai.har * (t.exp.har1))
-      
-      Har.Np1 - Har.Np2
+      ai_har <- (di / (1 - di) / t_units) #nominal decline
+
+      qi / ai_har * log(1 + ai_har * (t_exp_har1)) - 
+        qi / ai_har * log(1 + ai_har * (t_exp_har2))
       
       
     }else{
       
-      ###############Hyperbolic - b value is not 0 or 1
-      #determine parameters for Dmin
-      ai.hyp <- (1 / (t.units * b))*((1 - Di)^- b-1) #nominal deline per time units 
-      a.yr <- (1 / b) * ((1 / (1 - Di))^b - 1) #nominal deline in years
-      #qi.hyp <- (qi * ai.hyp * (1 - b)) / (1 - 1 / (1 + ai.hyp * b)^((1 - b)/b)) #back calc qi based on Np (month 1)
+##Hyperbolic - b value is not 0 or 1=========================================================
+##determine parameters for dmin
+      ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
+      a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
+      t_trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
+      t_trans_seq <- seq(1:t_trans)
+      t_trans_seq2 <- t_trans_seq - 1
+
+      Hyp_Npdmin <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq)^((1 - b) / b)))) - 
+        (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq2)^((1 - b) / b))))
+
+##forecast expontintal to end of forecast years (Terminal decline portion of the curve)=========
+      a_dmin <- -log(1 - dmin)/t_units
+##rate at transition month
+      q_trans <- qi / ((1 + b * ai_hyp * t_trans))^(1 / b)  
+##cum volume at tranistion month
+      Np_trans <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b * t_trans)^((1 - b) / b)))) 
+      t_exp_final1 <- seq_len(prod_time - t_trans - time_ms);
+      t_exp_final2 <- 0:(prod_time - t_trans - time_ms - 1)
       
-      t.trans <- ceiling(( a.yr / ( -log (1 - Dmin)) - 1)/( a.yr * b) * t.units) #time to reach Dmin
-      t.trans.seq <- seq(1:t.trans)
-      t.trans.seq2 <- t.trans.seq - 1
+##forecast from dmin to end of forecast=========================================================
+      Exp_Np <- (Np_trans + q_trans / a_dmin * (1 - exp(-a_dmin * t_exp_final1))) - 
+        (Np_trans + q_trans / a_dmin * (1 - exp(-a_dmin * t_exp_final2)))
       
-      ###########forecast to Dmin################
-      Hyp.Np.toDmin1 <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq)^((1 - b) / b))))
-      Hyp.Np.toDmin2 <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b *  t.trans.seq2)^((1 - b) / b))))
-      Hyp.NpDmin <- Hyp.Np.toDmin1  - Hyp.Np.toDmin2
-      
-      ##########forecast expontintal to end of forecast years (Terminal decline portion of the curve)#########
-      aDmin <- -log(1 - Dmin)/t.units
-      q.trans <- qi / ((1 + b * ai.hyp * t.trans))^(1 / b) #rate at transition month 
-      Np.trans <- (qi / (( 1 - b) * ai.hyp)) * (1-(1/((1 + ai.hyp * b * t.trans)^((1 - b) / b)))) #cum volume at tranistion month
-      t.exp.final <- seq_len(prod.time - t.trans - time.ms);
-      t.exp.final1 <- 0:(prod.time - t.trans - time.ms - 1)
-      
-      #########forecast from Dmin to end of forecast
-      Exp.Np1 <- Np.trans + q.trans / aDmin * (1 - exp(-aDmin * t.exp.final))
-      Exp.Np2 <- Np.trans + q.trans / aDmin * (1 - exp(-aDmin * t.exp.final1))
-      Exp.Np <- Exp.Np1 - Exp.Np2
-      
-      append(Hyp.NpDmin, Exp.Np)
+      c(Hyp_Npdmin, Exp_Np)
       
     } 
-  data.frame(primary = c(forecast.exp, forecast.hyp))
+  data_frame(primary = c(forecast_exp, forecast_hyp))
 }
 
-DCA(1)
+df <- DCA(1)
 
-#Econ_Metrics <- data.frame(wellnames, map_df(seq_along(wellnames), CF.Metrics))
+##yield forecast================================================================================
+
+rForecast <- function(forecast_time, t1Segment, ratio1, ratio2, ratio3)
+{
+  ##1st segment##
+  a1 <- if( ratio1 == 0 ) { 0
+  }else{
+    log( ratio1 / ratio2 ) / t1Segment } ##calc nominal decline
+  t1 <- seq_along(1 : t1Segment) #length of 1st segment
+  
+  ##ratio for the month 
+  ##if true then flat yield
+  r1_forecast <- if( ratio1 == ratio2 ){ 
+    ratio1
+  }else{
+    ( ratio1 * exp( -a1 * (t1 - 1)) - 
+        ratio1 * exp( -a1 * t1))/a1
+  }
+  
+  ###2nd segment
+  t2 <- forecast_time - t1Segment
+  t3 <- seq_along( 1 : t2 )
+  
+  ###check to see if flat yield for 2nd seg
+  ###if true then append r_1 to flat forecast
+  if( ratio2 == ratio3 ){
+    append( r1_forecast, (rep(ratio2, t2)))
+  } else {
+    a2 <- log( ratio2 / ratio3 ) / t2 ###calc nominal decline
+    
+    ###ratio for the month
+    r2_forecast <- ( ratio2 * exp( -a2 * (t3 - 1)) - 
+                       ratio2 * exp( -a2 * t3)) / a2
+    
+    ###append gor/yield forecast
+    c( r1_forecast,r2_forecast )
+    
+  }
+  
+}
+
+rForecast(30, 7, 500, 1300, 1300)
+
+##end of forecast==========================================================================
+#Econ_Metrics <- data_frame(wellnames, map_df(seq_along(wellnames), CF_Metrics))
 
 
 typewell <- DCA(1)  %>%
   mutate(tcName = "tw1",
-         Time = seq_len(prod.time),
-         Ratio = aries_yield(prod.time, time.1, yield.1, yield.2, yield.3), 
-         Gas.mcf = primary * Ratio / 1000) %>%
-  select(tcName, Time, Oil.bbl = primary, Gas.mcf, Ratio)
-write.csv(typewell, file = "typewell.csv")
+         Time = seq_len(prod_time),
+         Ratio = aries_yield(prod_time, time_1, yield_1, yield_2, yield_3), 
+         Gas_mcf = primary * Ratio / 1000) %>%
+  select(tcName, Time, Oil_bbl = primary, Gas_mcf, Ratio)
+write_csv(typewell, file = "typewell_csv")
 
 
 head(typewell)

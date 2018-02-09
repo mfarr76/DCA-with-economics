@@ -68,36 +68,6 @@ YieldForecast <- data.frame(Time = as.numeric(seq_along(1:forecast_time)), secon
 
 
 
-
-GORi <- 500
-GOR1 <- 1300
-GORf <- 1300
-GOR1T <- 7
-GORfT <- 7
-
-TC_GOR <- function(GORi,GOR1,GORf,GOR1T,GORfT)
-{
-  ProdData <- data.frame( "Time" = seq(1:(52*365.25)))
-  #GOR1T <- as.integer(GOR1T * 30.44)
-  GOR1T <- as.integer(GOR1T)
-  #GORfT <- as.integer(GORfT * 30.44)
-  GORfT <- as.integer(GORfT)
-  Slope1 <- (log10(GOR1)-log10(GORi))/GOR1T
-  b1 <- 10^(log10(GOR1)-Slope1*GOR1T)	
-  Slope2 <- (log10(GORf)-log10(GOR1))/GORfT
-  b2 <- 10^(log10(GORf)-Slope2*(GOR1T+GORfT))
-  ProdData$Y <- ifelse(ProdData$Time<GOR1T,10^(Slope1*ProdData$Time+log10(b1)),
-                       ifelse(ProdData$Time>=GOR1T & ProdData$Time<(GOR1T+GORfT),10^(Slope2*ProdData$Time+log10(b2)),
-                              GORf))
-  return(ProdData)
-}
-plot(ProdData)
-
-ProdData <- TC_GOR(500, 1300, 1300, 7, 7)
-rm(ProdDate)
-
-
-
 rForecast <- function(forecast_time, t1Segment, ratio1, ratio2, ratio3)
 {
   ##1st segment##

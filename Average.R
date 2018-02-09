@@ -3,8 +3,8 @@ rm(list = ls())
 ##load spotfire data===================================================================
 
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.daily.AT.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.monthly.AT.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/avg.mnth.at.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #####not to load in spotfire
 og_select <- 1
 prod_tbl <- read.csv("IHS_PROD.csv")
@@ -26,19 +26,18 @@ input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table
 ##Michael Farr
 #This script will average oil & gas rates and normalized based on the primary phase that is selected by the user
 
-#install.packages=========================================================================
+##script begins=========================================================================
 
-##install package if it is not already installed
+##install package if it is not already installed========================================
 list.of.packages <- c("dplyr", "tibble")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
 
-##load packagelibrary(dplyr, warn.conflicts = FALSE)
-
+##load package==========================================================================
+library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
-
-##property controls...user can change these properties====================================
+##property controls...user can change these properties==================================
 prod_tbl #production table
 og_select #oil/gas selection as primary phase
 normal_lat #normalized lateral length
@@ -49,8 +48,10 @@ t_select <- 1 #set time units to months
 #pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
 t_units <- ifelse(t_select == 1, 1, 365/12)
 
-##filter and rename the production table==================================================
-  prod_tbl %>%
+##filter and rename the production table================================================
+
+##use ihs prod tbl for the code below===================================================
+input <- prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
   mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
                            origin = "1970-01-01", tz = "UTC"), 
@@ -61,6 +62,20 @@ t_units <- ifelse(t_select == 1, 1, 365/12)
          Oil = Liquid, 
          Gas, 
          EffLat = PerfIntervalGross)
+##end of ihs prod tbl=====================================================================
+
+##use ariesMaster monthly (AC_PRODUCT prod tbl for the code below=========================
+input <- prod_tbl %>%
+  mutate(Time = as.POSIXct(as.Date(P_DATE , "%m/%d/%Y"),           #convert P_DATE to consistant units
+                           origin = "1970-01-01", tz="UTC")) %>%
+  select(WellId = PROPNUM,
+         Time,
+         Oil = OIL, 
+         Gas = GAS, 
+         EffLat = EFF_LAT)
+
+##end of ariesMaster prod tbl===============================================================
+
 
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(og_select == 6)
@@ -85,8 +100,7 @@ if(nrow(input) == 0)
   
   ##################dplyr package used for data wrangling####################
   AVERAGE.MONTHLY <- input %>%
-    arrange(WellId, 
-            Time) %>%
+    arrange(WellId, Time) %>%
     group_by(WellId) %>%
     mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
            Months = cumsum(RowCount), 
@@ -123,11 +137,13 @@ if(nrow(input) == 0)
               #GOR_p90 = quantile(GOR1, p = 0.10, na.rm = TRUE), #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount) %>%
-    mutate_if(is.integer, as.numeric) %>%
-    mutate_if(is.character, as.factor)
+    mutate_if(is.integer, as.numeric)
 }
-##end script==============================================================================
 
+##create a Rdata file to load in R========================================================
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
 if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/average.RData',sep=''), RFormat=T )))
+
+
+##end script==============================================================================
