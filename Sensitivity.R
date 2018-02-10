@@ -5,56 +5,51 @@ rm(list = ls())
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/cashflow.RData")
 
-####-------------------copy below into spotfire------------------------------------------
+##copy below into spotfire==================================================================
 
-
-####Michael Farr SM Energy 10/18/17####
-###This data function will generate a cash flow model built using Aries cash flow as a check
+##Michael Farr SM Energy 10/18/17===========================================================
+##This data function will generate a cash flow model built using Aries cash flow as a check
 
 ##install package if it is not already installed
 list.of.packages <- c("dplyr", "tibble", "purrr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
 
-##load package
+##load package==============================================================================
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 library(purrr, warn.conflicts = FALSE)
 
 
+##user inputs saved to a tbl
+econTable
+
+econTable <- na.omit(econTable)
 
 #uniques typecurve name and not NA to run economics
-tc_unique_names <- unique(EconTable$TC_Group[!is.na(EconTable$TC_Group)]) 
+#tc_unique_names <- unique(econTable$TC_Group[!is.na(econTable$TC_Group)])
+tc_name <- unique(econTable$TC_Group)
+
 capex_mnth <- 1 #hard code, not setup to change at this time
 
 ##for loop to generate uniques wellnames and store it in tc_list
 tc_list <- list()
-for(i in seq_along(tc_unique_names))
+for(i in seq_along(tc_name))
 {
-  tc_list[i] <- list(tc_unique_names[i])
+  tc_list[i] <- list(tc_name[i])
 }
 
-
-##user input from econ table
-EconTable
 
 
 ####get price entered from user input box
 user_price <- data.frame()
-for(i in seq_along(tc_unique_names))
+for(i in seq_along(tc_name))
 {
-  econ_red <- subset(EconTable, TC_Group == tc_list[i]);
+  econ_red <- subset(econTable, TC_Group == tc_list[i]);
   us1 <- cbind(econ_red[1,2], econ_red[1,3], econ_red[1,3] * 0.4)
   user_price <- rbind(user_price, us1)
   
 }
-
-
-##########wasn't able to match price with well cost with this code########
-#gUser <- EconTable[1,2]
-#oUser <- EconTable[1,3]
-#nUser <- oUser * 0.4
-#user.price <- cbind(gUser, oUser, nUser) ##price inputs by user
 
 
 ##this function is setup to loop through the individual typecurves
@@ -68,27 +63,28 @@ for(i in seq_along(tc_unique_names))
 
 TcForecast <- TcForecast %>%
   filter(Well_Type == "TypeCurve") %>%
+  arrange(TC_Group, Time) %>%
   select(TC_Group, Time, Gas_mcf_TC, Oil_bbl_TC)
 
 cshflow <- function(x, y, z) 
 { #first use subset function (reduce) the TC table (TCGroup) to the first TC in the tc.list
-  #do the same for the EconTable to so you have the correct values per TC
+  #do the same for the econTable to so you have the correct values per TC
   red_tc <- subset(TcForecast, TC_Group == tc_list[i]); #reduce/filter the typecurves one at a time 
-  red_inputs <- subset(EconTable, TC_Group == tc_list[i]);
+  red_inputs <- subset(econTable, TC_Group == tc_list[i]);
   #TCname and date
   TC_Group = red_tc$TC_Group;
   Time <-  as.numeric(red_tc$Time);
   
   #gross prd
-  GRGas_mcf <- as.numeric(red_tc$Gas_mcf);
-  GROil_bbl <- as.numeric(red_tc$Oil_bbl);
-  GRNgl_bbl <- as.numeric(GRGas_mcf/1000 * red_inputs$NGL_Yield);
+  GRGas_mcf <- (red_tc$Gas_mcf);
+  GROil_bbl <- (red_tc$Oil_bbl);
+  GRNgl_bbl <- (GRGas_mcf/1000 * red_inputs$NGL_Yield);
   GRBOE <- ((GRGas_mcf * red_inputs$Shrink) / 6 + (GRNgl_bbl + GROil_bbl));
   
   #net prod
-  NetDryGas_mcf <- as.numeric(GRGas_mcf * red_inputs$Shrink * red_inputs$NRI);
-  NetOil_bbl <- as.numeric(GROil_bbl * red_inputs$NRI);
-  NetNGL_bbl <- as.numeric(GRNgl_bbl * red_inputs$NRI);
+  NetDryGas_mcf <- (GRGas_mcf * red_inputs$Shrink * red_inputs$NRI);
+  NetOil_bbl <- (GROil_bbl * red_inputs$NRI);
+  NetNGL_bbl <- (GRNgl_bbl * red_inputs$NRI);
   NetBOE <- (NetOil_bbl + NetNGL_bbl + NetDryGas_mcf/6);
   
   #net revenue
@@ -105,11 +101,12 @@ cshflow <- function(x, y, z)
   #net cashflows
   NetUndiscCF <- NetOpIncome - NetCapex;
   NetDiscCapex <- 1 / (1 + red_inputs$Discount_Rate)^((capex_mnth - 1)/ 12) * NetCapex;
-  NetDiscCF <- as.numeric(NetOpIncome *(1/(1 + red_inputs$Discount_Rate)^((Time - 0.5) / 12)) - NetDiscCapex);
+  NetDiscCF <- (NetOpIncome *(1/(1 + red_inputs$Discount_Rate)^((Time - 0.5) / 12)) - NetDiscCapex);
   NetCumDiscCF <- cumsum(NetDiscCF);
   
-  results <- data.frame(TC_Group, Time, GRGas_mcf, GROil_bbl, GRNgl_bbl, GRBOE, NetDryGas_mcf, NetOil_bbl, NetNGL_bbl,
-                        NetBOE, NetGasRev, NetOilRev, NetNGLRev, NetRev, NetOpex ,NetOpIncome, NetUndiscCF, NetDiscCapex, NetDiscCF, NetCumDiscCF)
+  results <- data.frame(TC_Group, Time, GRGas_mcf, GROil_bbl, GRNgl_bbl, GRBOE, NetDryGas_mcf, NetOil_bbl, 
+                        NetNGL_bbl, NetBOE, NetGasRev, NetOilRev, NetNGLRev, NetRev, NetOpex ,NetOpIncome, 
+                        NetUndiscCF, NetDiscCapex, NetDiscCF, NetCumDiscCF)
   
   results_cshflow <- filter(results, NetOpIncome > 0) #stop reporting when income does negative....LOSS ZERO
   
@@ -121,7 +118,7 @@ cshflow <- function(x, y, z)
 
 #cashflow loop for all the TC
 CashFlow <- data.frame()
-for(i in seq_along(tc_unique_names)) #number of time to loop
+for(i in seq_along(tc_name)) #number of time to loop
 {
   cf1 <- cshflow(i, user_price[i,], 1) #call cshflow function
   CashFlow <- rbind(CashFlow , cf1) #store the results of each loop
@@ -131,30 +128,30 @@ for(i in seq_along(tc_unique_names)) #number of time to loop
 ##price sensitivity
 
 #sensitivity_phase <- "GAS"
-#flat_price <- 3
+#flat_price <- 40
 
 ##user inputs
 sensitivity_phase
 flat_price
 
+price <- data.frame()
 ##generate price file to use for sensitivity analysis
 if(sensitivity_phase == "OIL")
 {
-  gPrice <- flat_price
-  oPrice <- seq(10, 100, by = 10)
-  nPrice <- oPrice *0.4
-  price <- cbind(gPrice, oPrice, nPrice)
+  price <- cbind(gPrice = flat_price, 
+                 oPrice = seq(10, 100, by = 10), 
+                 nPrice = oPrice *0.4)
 }else{
-  gPrice <- seq(1, 5.5, by = 0.5)
-  oPrice <- flat_price
-  nPrice <- oPrice *0.4
-  price <- cbind(gPrice, oPrice, nPrice)
+
+  price <- cbind(gPrice = seq(1, 5.5, by = 0.5), 
+                 oPrice = flat_price, 
+                 nPrice = oPrice *0.4)
 }
 
-price[10,1]
+
 
 CashFlow.Price <- data.frame()
-for(i in seq_along(tc_unique_names)){
+for(i in seq_along(tc_name)){
   for(j in 1:nrow(price))
   {
     cf_price <- cshflow(i, price, j)
@@ -197,7 +194,7 @@ cshflow_discount <- function(x, z)
 
 
 CashFlow.Disc <- data.frame()
-for(i in seq_along(tc_unique_names)){
+for(i in seq_along(tc_name)){
   for(j in seq_along(disc_rate_tbl))
   {
     cf_dr <- cshflow_discount(i, j)
@@ -243,7 +240,7 @@ CF_Metrics <- function(n){
 }
 
 
-Econ.Metrics <- data.frame(TC_Group = tc_unique_names, map_df(seq_along(tc_list), CF_Metrics))
+Econ.Metrics <- data.frame(TC_Group = tc_name, map_df(seq_along(tc_list), CF_Metrics))
 
 
 TimeStamp=paste(date(),Sys.timezone())

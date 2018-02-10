@@ -37,6 +37,9 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
+pkgs <- list(search = search(), loadedNamespaces = loadedNamespaces())
+dump("pkgs", file="C:/Users/MFARR/Documents/R_files/Spotfire.data/debugPackages.txt")
+
 ##property controls...user can change these properties==================================
 prod_tbl #production table
 og_select #oil/gas selection as primary phase
