@@ -51,33 +51,28 @@ for(i in seq_along(tc_name))
   
 }
 
-
-##this function is setup to loop through the individual typecurves
-##and use the user variable in the inputs table (capex, opex, wi, nri)
-#x <- 1
-#z <- 1
-#y <- user_price
-##x = tc.list generates unique names of typecurves
-##y = price file name --- user pricefile or sensivity price 
-##z = row in the matrix --- user only has 1 row -- sensitivity price has 9 rows
+user_price2 <- econTable %>%
+  filter(TC_Group == tc_list[i]) %>%
+  select(TC_Group, Gas_Price, Oil_Price, NGL_Price)
 
 TcForecast <- TcForecast %>%
   filter(Well_Type == "TypeCurve") %>%
-  arrange(TC_Group, Time) %>%
   select(TC_Group, Time, Gas_mcf_TC, Oil_bbl_TC)
 
-cshflow <- function(x, y, z) 
+
+cshflow <- function(x, y) #x = list of wellnames y = price file
 { #first use subset function (reduce) the TC table (TCGroup) to the first TC in the tc.list
   #do the same for the econTable to so you have the correct values per TC
   red_tc <- subset(TcForecast, TC_Group == tc_list[i]); #reduce/filter the typecurves one at a time 
   red_inputs <- subset(econTable, TC_Group == tc_list[i]);
+  
   #TCname and date
-  TC_Group = red_tc$TC_Group;
-  Time <-  as.numeric(red_tc$Time);
+  TC_Group <- red_tc$TC_Group;
+  Time <-  red_tc$Time;
   
   #gross prd
-  GRGas_mcf <- (red_tc$Gas_mcf);
-  GROil_bbl <- (red_tc$Oil_bbl);
+  GRGas_mcf <- red_tc$Gas_mcf_TC;
+  GROil_bbl <- red_tc$Oil_bbl_TC;
   GRNgl_bbl <- (GRGas_mcf/1000 * red_inputs$NGL_Yield);
   GRBOE <- ((GRGas_mcf * red_inputs$Shrink) / 6 + (GRNgl_bbl + GROil_bbl));
   
@@ -88,9 +83,11 @@ cshflow <- function(x, y, z)
   NetBOE <- (NetOil_bbl + NetNGL_bbl + NetDryGas_mcf/6);
   
   #net revenue
-  NetGasRev <- NetDryGas_mcf * y[z, 1]; ##example --- price[4,1] -> 2.5
-  NetOilRev <- NetOil_bbl * y[z, 2];  ##example --- user.price[1, 2]
-  NetNGLRev <- NetNGL_bbl * y[z, 3];
+  ##indexing in r -- filename[row, column] -- user_price[4,1] returns
+  ##user_price table row 4 column 1
+  NetGasRev <- NetDryGas_mcf * x[y, 1]; ##example --- user_price[4,1] -> 2.5
+  NetOilRev <- NetOil_bbl * x[y, 2];  ##example --- user_price[1, 2]
+  NetNGLRev <- NetNGL_bbl * x[y, 3];
   NetRev <- NetGasRev + NetOilRev + NetNGLRev;
   
   #net expenses
@@ -114,63 +111,69 @@ cshflow <- function(x, y, z)
   return(results_cshflow)
 }
 
-#test <- cshflow(1, user_price, 1)
 
 #cashflow loop for all the TC
 CashFlow <- data.frame()
+
 for(i in seq_along(tc_name)) #number of time to loop
 {
-  cf1 <- cshflow(i, user_price[i,], 1) #call cshflow function
+  cf1 <- cshflow(user_price, i) #call cshflow function -- price file[row (i), column (i)]
   CashFlow <- rbind(CashFlow , cf1) #store the results of each loop
 }
+#write.csv(CashFlow, file = "cf.csv")
 
-#-----------------------------------------
-##price sensitivity
+##price sensitivity===================================================================
 
-#sensitivity_phase <- "GAS"
-#flat_price <- 40
+sensitivity_phase <- "OIL"
+flat_price <- 20
 
 ##user inputs
 sensitivity_phase
 flat_price
 
-price <- data.frame()
-##generate price file to use for sensitivity analysis
-if(sensitivity_phase == "OIL")
-{
-  price <- cbind(gPrice = flat_price, 
-                 oPrice = seq(10, 100, by = 10), 
-                 nPrice = oPrice *0.4)
-}else{
 
-  price <- cbind(gPrice = seq(1, 5.5, by = 0.5), 
-                 oPrice = flat_price, 
-                 nPrice = oPrice *0.4)
-}
-
-
-
-CashFlow.Price <- data.frame()
-for(i in seq_along(tc_name)){
-  for(j in 1:nrow(price))
+comPrice <- function(phase, flat_price){
+  ##generate price file to use for sensitivity analysis
+  if(phase == "OIL")
   {
-    cf_price <- cshflow(i, price, j)
-    cf_price$scenario <- paste(price[j,1], '-' ,price[j,2], '-' , price[j,3])
-    cf_price$price <- ifelse(sensitivity_phase == "OIL", price[j,2], price[j, 1]) 
-    CashFlow.Price <- rbind(CashFlow.Price , cf_price)
+    gasPrice <- flat_price
+    oilPrice <- seq(10, 100, by = 10)
+    nglPrice <- oilPrice *0.4
     
+    return(cbind(gasPrice, oilPrice, nglPrice))
+  }else{
+    
+    gasPrice <- seq(1, 5.5, by = 0.5)
+    oilPrice <- flat_price
+    nglPrice <- oilPrice *0.4
+    cbind(gasPrice, oilPrice, nglPrice)
+    
+    return(cbind(gasPrice, oilPrice, nglPrice))
   }
+
 }
+price <- comPrice(sensitivity_phase, 3)
 
-##reduce the table
 
+  
+CashFlow.Price <- data.frame()
+  for(i in seq_along(tc_name)){
+    for(j in 1:nrow(price))
+    {
+      cf_price <- cshflow(price, j)
+      cf_price$scenario <- paste(price[j,1], '-' ,price[j,2], '-' , price[j,3])
+      cf_price$price <- ifelse(sensitivity_phase == "OIL", price[j,2], price[j, 1]) 
+      CashFlow.Price <- rbind(CashFlow.Price , cf_price)
+      
+    }
+  }
+  
 CashFlow.Price <- CashFlow.Price %>% 
-  group_by(TC_Group, scenario) %>% 
-  summarise(NPV = max(NetCumDiscCF), Price = mean(price)) %>%
-  arrange(TC_Group, Price)
-
-#------------------------------------------------
-##discount rate sensitivity to calc IRR
+    group_by(TC_Group, scenario) %>% 
+    summarise(NPV = max(NetCumDiscCF), Price = mean(price)) %>%
+    arrange(TC_Group, Price)
+  
+##discount rate sensitivity to calc IRR==========================================================
 
 #create a discount rate file
 disc_rate_tbl <- seq(0, 1, by = 0.05) 
@@ -229,8 +232,8 @@ CF_Metrics <- function(n){
   
   
   brkEven_sub <- subset(CashFlow.Price, TC_Group == tc_list[n]); #subset to link colnames with tc name
-  BrkEven <- unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2]);
-  
+  BrkEven <- ifelse(brkEven_sub[1,3] > 0, 0, unlist(approx(brkEven_sub$NPV, brkEven_sub$Price, 0)[2]));
+  colnames(BrkEven) <- "BrkEven"
   
   
   

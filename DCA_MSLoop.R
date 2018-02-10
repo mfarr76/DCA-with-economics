@@ -1,52 +1,37 @@
 rm(list = ls())
 library(dplyr)
 
-
-###load for testing
+##load for testing===========================================================================
 #load("C:/Users/MFARR/Documents/R_files/Spotfire_data/average_RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire_data/tbl4r_RData")
 forecast_parm <- read.csv("forecast_parm.csv", stringsAsFactors = FALSE)
 
-
-
-#qi <- 100000
-#b <- 1_1
-#Di <- _75
-#dmin <- _10
 forecast_years <- 30
 Day_Month = "Months"
-#t_units <- ifelse(Day_Month == "Months", 12, 365)
 t_units <- 12
 prod_time <- forecast_years * t_units
 abRate <- 150
-#pPhase <- quote(Oil)
 ms <- 2 #multisegment forecast 1 = On 2 = Off
-#time_ms <- 10 #time for multisegment forecast
-#di_ms <- _1 #decline for multisgement decline
+pPhase <- "GAS"
+
+##load into spotfire
 
 ##create list with wellnames===============================================================
-wellnames <- unique(forecast_parm$tcName[!is.na(forecast_parm$tcName)])
-tc_num <- 1
+#wellnames <- unique(forecast_parm$tcName[!is.na(forecast_parm$tcName)])
+forecast_parm <- na.omit(forecast_parm)
+names <- unique(forecast_parm$tcName)
 
-tc_list <- list()
-for(i in seq_len(length(wellnames)))
+#num <- 3
+##dca setup for no buildup with multi forecast to loop through==============================
+dca_loop <- function(num)
 {
-  tc_list[i] <- list(wellnames[i])
-}
-
-t <- seq_len(prod_time)
-t2 <- t - 1
-
-##dca setup for no buildup with multi forecast to loop through===============================
-DCA <- function(tc_num)
-{
-  user_parms <- subset(forecast_parm, tcName == tc_list[tc_num]);
-  qi <- as.numeric(user_parms[2]);
-  time_ms <- as.numeric(user_parms[3]);
-  di_ms <- as.numeric(user_parms[4]);
-  b <- as.numeric(user_parms[5]);
-  di <- as.numeric(user_parms[6]);
-  dmin <- as.numeric(user_parms[7]);
+  user_parms <- subset(forecast_parm, tcName == names[num]);
+  qi <- user_parms$qi;
+  time_ms <- ifelse(ms == 1, user_parms$ms_time, 0);
+  di_ms <- user_parms$ms_Di;
+  b <- user_parms$b;
+  di <- user_parms$Di;
+  dmin <- user_parms$Dmin;
   
   #Di <- Di/100
   #dmin <- dmin/100
@@ -92,7 +77,7 @@ DCA <- function(tc_num)
       ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
       a_yr <- (1 / b) * ((1 / (1 - di))^b - 1) #nominal deline in years
       t_trans <- ceiling(( a_yr / ( -log (1 - dmin)) - 1)/( a_yr * b) * t_units) #time to reach dmin
-      t_trans_seq <- seq(1:t_trans)
+      t_trans_seq <- seq_len(t_trans)
       t_trans_seq2 <- t_trans_seq - 1
 
       Hyp_Npdmin <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b *  t_trans_seq)^((1 - b) / b)))) - 
@@ -105,7 +90,7 @@ DCA <- function(tc_num)
 ##cum volume at tranistion month
       Np_trans <- (qi / (( 1 - b) * ai_hyp)) * (1-(1/((1 + ai_hyp * b * t_trans)^((1 - b) / b)))) 
       t_exp_final1 <- seq_len(prod_time - t_trans - time_ms);
-      t_exp_final2 <- 0:(prod_time - t_trans - time_ms - 1)
+      t_exp_final2 <- t_exp_final1 - 1
       
 ##forecast from dmin to end of forecast=========================================================
       Exp_Np <- (Np_trans + q_trans / a_dmin * (1 - exp(-a_dmin * t_exp_final1))) - 
@@ -114,65 +99,85 @@ DCA <- function(tc_num)
       c(Hyp_Npdmin, Exp_Np)
       
     } 
-  data_frame(primary = c(forecast_exp, forecast_hyp))
+  data_frame(Primary = c(forecast_exp, forecast_hyp)) %>%
+    mutate(Name = user_parms[[1]], 
+           Time = seq_len(prod_time)) %>%
+    select(Name, Time, Primary) 
 }
+##end dca_loop==============================================================================
 
-df <- DCA(1)
+#system.timedca_loop(3)
 
-##yield forecast================================================================================
-
-rForecast <- function(forecast_time, t1Segment, ratio1, ratio2, ratio3)
+##yield forecast============================================================================
+#num <- 3
+rForecast <- function(num)
 {
+  user_parms <- subset(forecast_parm, tcName == names[num]);
+  time1 <- user_parms$seg1_ratio;
+  r1 <- user_parms$ratio1;
+  r2 <- user_parms$ratio2;
+  r3 <- user_parms$ratio3;
+  
+  
   ##1st segment##
-  a1 <- if( ratio1 == 0 ) { 0
+  a1 <- if( r1 == 0 ) { 0
   }else{
-    log( ratio1 / ratio2 ) / t1Segment } ##calc nominal decline
-  t1 <- seq_along(1 : t1Segment) #length of 1st segment
+    log( r1 / r2 ) / time1 } ##calc nominal decline
+  t1 <- seq_len(time1) #length of 1st segment
   
   ##ratio for the month 
   ##if true then flat yield
-  r1_forecast <- if( ratio1 == ratio2 ){ 
-    ratio1
+  r1_fc <- if( r1 == r2 ){ 
+    r1
   }else{
-    ( ratio1 * exp( -a1 * (t1 - 1)) - 
-        ratio1 * exp( -a1 * t1))/a1
+    ( r1 * exp( -a1 * (t1 - 1)) - 
+        r1 * exp( -a1 * t1))/a1
   }
   
   ###2nd segment
-  t2 <- forecast_time - t1Segment
-  t3 <- seq_along( 1 : t2 )
+  t2 <- prod_time - time1
+  t3 <- seq_len(t2)
   
   ###check to see if flat yield for 2nd seg
   ###if true then append r_1 to flat forecast
-  if( ratio2 == ratio3 ){
-    append( r1_forecast, (rep(ratio2, t2)))
+  if( r2 == r3 ){
+    append( r1_fc, (rep(r2, t2)))
   } else {
-    a2 <- log( ratio2 / ratio3 ) / t2 ###calc nominal decline
+    a2 <- log( r2 / r3 ) / t2 ###calc nominal decline
     
-    ###ratio for the month
-    r2_forecast <- ( ratio2 * exp( -a2 * (t3 - 1)) - 
-                       ratio2 * exp( -a2 * t3)) / a2
+    ###r for the month
+    r2_fc <- ( r2 * exp( -a2 * (t3 - 1)) - 
+                       r2 * exp( -a2 * t3)) / a2
     
     ###append gor/yield forecast
-    c( r1_forecast,r2_forecast )
+    c( r1_fc,r2_fc )
     
   }
   
 }
+##end of yield=============================================================================
 
-rForecast(30, 7, 500, 1300, 1300)
+#system.time(rf <- rForecast(3))
 
-##end of forecast==========================================================================
-#Econ_Metrics <- data_frame(wellnames, map_df(seq_along(wellnames), CF_Metrics))
+##write output of dca and yield============================================================
+dca <- data.frame()
+system.time(
+  for(i in seq_along(names)){
+    
+    df <- dca_loop(i)
+    df$Ratio <- rForecast(i) 
+    dca <- rbind(dca, df)
+    
+  }
+)
+
+dca <- dca %>%
+  group_by(Name, Time) %>%
+  mutate(Secondary = ifelse(pPhase == "GAS", Ratio * Primary / 1000, 
+                            (Ratio * Primary) / 1000))
 
 
-typewell <- DCA(1)  %>%
-  mutate(tcName = "tw1",
-         Time = seq_len(prod_time),
-         Ratio = aries_yield(prod_time, time_1, yield_1, yield_2, yield_3), 
-         Gas_mcf = primary * Ratio / 1000) %>%
-  select(tcName, Time, Oil_bbl = primary, Gas_mcf, Ratio)
-write_csv(typewell, file = "typewell_csv")
 
+colnames(dca) <- c("Name", "Time", "Rato", ifelse(pPhase == "GAS", "GrGas_Mcf", "GrOil_Bbl"), 
+                   ifelse(pPhase == "GAS", "GrOil_Bbl", "GrGas_Mcf"))
 
-head(typewell)
