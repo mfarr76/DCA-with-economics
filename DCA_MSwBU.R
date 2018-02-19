@@ -3,7 +3,10 @@ library(dplyr)
 ##LOAD - TESTING ONLY=============================================================
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
-load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/avg.mnth.at.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
+
 
 b <- 1
 di <- 60
@@ -29,20 +32,20 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
-##data loaded from tables
-AVERAGE.MONTHLY
-##inputs from user through property controls
-og_select
-curve_select
-b
-di
-dMin
-forecast_years
-ms #multisegment forecast 1 = On 2 = Off
-abRate #abandonment rate
-time_ms #length of ms
-di_ms #decline of ms
-t_select <- 1 #select months or days
+##inputs from spotfire
+AVERAGE.MONTHLY          #data loaded from average table 
+og_select                #primary phase
+curve_select             #Average,P10, P50, P90 curve selection
+b                        #b factor
+di                       #effective decline
+dMin                     #terminal decline
+forecast_year            #number of forecast year
+ms                       #multisegment forecast 1 = On 2 = Off
+abRate                   #abandonment rate
+time_ms                  #length of ms
+di_ms                    #decline of ms
+t_select <- 1            #select months or days
+t_units <- ifelse(t_select == 1, 12, 365/12)
 
 ##Decline parameters
 di <- di/100
@@ -53,9 +56,9 @@ a_yr <- ( 1 / b) * (( 1 / ( 1 - di ))^b - 1 ) #nominal deline in years
 
 
 ##############table structure is demostrated below
-#curve_matrix <- matrix(2:7,3,2)
+#curve_matrix <- matrix(2:9,4,2)
 #colnames(curve_matrix) <- c("Gas", "Oil")
-#rownames(curve_matrix) <- c("Average", "P10", "P90")
+#rownames(curve_matrix) <- c("Average", "P10", "P50", "P90")
 #user inputs 
 #og_select <- 2
 #curve_select <- 0
@@ -63,9 +66,9 @@ a_yr <- ( 1 / b) * (( 1 / ( 1 - di ))^b - 1 ) #nominal deline in years
 cInput <- og_select + curve_select
 ##create table to calculate buildup properties====================================
 
-##if statement to reduce the columns needed (1:6) from the average table
+##reduce the columns needed (1:6) from the average table
 if(nrow(AVERAGE.MONTHLY) > 1){
-  user_phase <- AVERAGE.MONTHLY %>% slice(., 1:6)
+  user_phase <- AVERAGE.MONTHLY[1:6, 1:9] * 365 / 12 #convert to monthly volumes
 }else{
   user_phase <- data.frame(Months = c(0), Phase = c(0))
 }
@@ -76,8 +79,8 @@ if(ncol(user_phase) == 2){
   qi <- c(0)
   time_to_peak <- c(0)
 }else{
-  mnth1_rate <- as.numeric(user_phase[1,cInput])
-  qi <- as.numeric(max(user_phase[cInput], na.rm = TRUE)) #max rate
+  mnth1_rate <- (user_phase[1,cInput])                     #1st month volume
+  qi <- (max(user_phase[cInput], na.rm = TRUE))            #max rate
   time_to_peak <- which.max(as.matrix(user_phase[cInput])) #time to max volume...limited by user_phase table
 }
 
@@ -130,7 +133,7 @@ DCA <- function(b, di, dMin, di_ms, forecast_years, time_ms) #function to run DC
     if(time_to_peak > 1)
     {
       time_to_peak1 <- time_to_peak - 1
-      as.numeric(user_phase[ 1:time_to_peak1, cInput ])
+      user_phase[ 1:time_to_peak1, cInput ]
     }
   
   forecast_exp <- #expontial arps
@@ -209,20 +212,6 @@ DCA <- function(b, di, dMin, di_ms, forecast_years, time_ms) #function to run DC
   data.frame(primary = c(forecast_bu, forecast_exp, forecast_hyp))
 }
 
-if(nrow(AVERAGE.MONTHLY) == 1)
-{
-  DCA.Forecast <- data.frame(Time = c(0), primary = 0)
-  
-}else{
-  
-  DCA.Forecast <- data.frame(DCA(b, di, dMin, di_ms, forecast_years, time_ms)) %>%
-    mutate(rowcount = 1,
-           Time = as.numeric(cumsum(rowcount))) %>%
-    filter(Time <= prod_time &
-             primary > abRate)  %>%
-    select(Time, primary)
-}
-
 ##join tc table with yield forecast=============================================
 
 if(nrow(AVERAGE.MONTHLY) == 1)
@@ -231,7 +220,12 @@ if(nrow(AVERAGE.MONTHLY) == 1)
                              Ratio = c(0), cumGas_mmcf = c(0) ,cumOil_mbo = c(0))
   
 }else{
-  DCA.Forecast <- left_join(DCA.Forecast, YieldForecast, by = c("Time")) %>%
+  DCA.Forecast <- DCA(b, di, dMin, di_ms, forecast_years, time_ms) %>%
+    mutate(rowcount = 1,
+           Time = cumsum(rowcount)) %>%
+    filter(Time <= prod_time, primary > abRate) %>%
+    select(Time, primary) %>%
+    left_join(., YieldForecast, by = c("Time")) %>%
     mutate(Gas_mcf = if(og_select == 6){primary/1000 * secondary}else{primary}, #mcf
            Oil_bbl = if(og_select == 6){primary}else{primary * secondary/1000}, #bbl
            Gas_mcf_d = Gas_mcf / ( 365 / 12 ), #mcf/d
@@ -267,8 +261,8 @@ if(nrow(AVERAGE.MONTHLY) == 1)
            CumOil12MO_mbo = cumOil_mbo, #mbo
            GasEUR_mmcf = sum(Gas_mcf, na.rm = TRUE)/1000, #mmcf
            OilEUR_mbo = sum(Oil_bbl, na.rm = TRUE)/1000, #mbo
-           TotalEUR_mboe = GasEUR_mmcf/6 + OilEUR_mbo, 
-           qi_back_calc = qi_back_calc) %>% #mboe
+           TotalEUR_mboe = GasEUR_mmcf/6 + OilEUR_mbo, #mboe
+           qi_back_calc = qi_back_calc / (365 / 12)) %>% #conver to days - mboe
     filter(Time == 12) %>%
     select(CumGas12MO_mmcf,
            CumOil12MO_mbo,

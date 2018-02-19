@@ -42,7 +42,7 @@ library(RODBC, warn.conflicts = FALSE)
 wellheader #wellheader table to get spacing
 prod_tbl #production table
 DCA.Forecast #typecurve table
-wellheader #wellheader table to get spacing
+
 
 ##user inputs
 user_TCname #name of TC group - input box on DCA tab
@@ -55,7 +55,7 @@ TcCums <- prod_tbl %>%
   filter(c.Months == 12 ) %>% 
   mutate(TC_Name = user_TCname,
          TC_Group = user_TCname,
-         Time = as.numeric(c.Months)) %>%
+         Time = c.Months) %>%
   select(TC_Name,
          TC_Group,
          Time, 

@@ -70,11 +70,13 @@ input <- prod_tbl %>%
 ##use ariesMaster monthly (AC_PRODUCT prod tbl for the code below=========================
 input <- prod_tbl %>%
   mutate(Time = as.POSIXct(as.Date(P_DATE , "%m/%d/%Y"),           #convert P_DATE to consistant units
-                           origin = "1970-01-01", tz="UTC")) %>%
+                           origin = "1970-01-01", tz="UTC"),
+         OilD = OIL / t_units, 
+         GasD = GAS / t_units) %>%
   select(WellId = PROPNUM,
          Time,
-         Oil = OIL, 
-         Gas = GAS, 
+         Oil, 
+         Gas, 
          EffLat = EFF_LAT)
 
 ##end of ariesMaster prod tbl===============================================================
@@ -83,9 +85,9 @@ input <- prod_tbl %>%
 ##based upon the pPhase, filter out zero months and minimum lateral lengths
 if(og_select == 6)
 {
-  input <- filter(input, Oil > 0 & EffLat > min_lat)
+  input <- filter(input, OilD > 0 & EffLat > min_lat)
 }else{
-  input <- filter(input, Gas > 0 & EffLat > min_lat)
+  input <- filter(input, GasD > 0 & EffLat > min_lat)
 }
 
 
@@ -109,10 +111,12 @@ if(nrow(input) == 0)
            Months = cumsum(RowCount), 
            Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
            Gas1 = Gas / EffLat * normal_lat,
+           Oil1M = Oil1 * 365/12,
+           Gas1M = Gas1 * 365/12,
            Yield1 = ifelse( !is.na(Oil) & !is.na(Gas), Oil / ( Gas / 1000 ), NA), #bbl/mmcf
            GOR1 = ifelse( !is.na(Oil) & !is.na(Gas), ( Gas * 1000 ) / Oil, NA), #scf/bbl
-           CUMOil1 = cumsum(ifelse( !is.na(Oil1), Oil1, 0 )),
-           CUMGas1 = cumsum(ifelse( !is.na(Gas1), Gas1, 0 ))) %>% 
+           CUMOil1 = cumsum(ifelse( !is.na(Oil1M), Oil1M, 0 )),
+           CUMGas1 = cumsum(ifelse( !is.na(Gas1M), Gas1M, 0 ))) %>% 
     group_by( Months ) %>%
     summarise(Gas_avg = mean(Gas1, na.rm = TRUE), #mcf
               Gas_p10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
