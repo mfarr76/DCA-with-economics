@@ -23,7 +23,7 @@ Gas <- prod_tbl$Gas
 input <- data.frame(WellId, Time, Oil, Gas, EffLat) #create Average table
 
 
-##Michael Farr
+##Michael Farr SM Energy 3/8/18
 #This script will average oil & gas rates and normalized based on the primary phase that is selected by the user
 
 ##script begins=========================================================================
@@ -37,64 +37,60 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
-pkgs <- list(search = search(), loadedNamespaces = loadedNamespaces())
-dump("pkgs", file="C:/Users/MFARR/Documents/R_files/Spotfire.data/debugPackages.txt")
+#pkgs <- list(search = search(), loadedNamespaces = loadedNamespaces())
+#dump("pkgs", file="C:/Users/MFARR/Documents/R_files/Spotfire.data/debugPackages.txt")
 
 ##property controls...user can change these properties==================================
 prod_tbl #production table
 og_select #oil/gas selection as primary phase
 normal_lat #normalized lateral length
 min_lat #minimum lateral length
-t_select <- 1 #set time units to months
+#t_select <- 1 #set time units to months
 
 ##"og_select" document property control allows the user to select OIL (1) or GAS (2) as the primary phase
 #pPhase <- ifelse(og_select == 5, "Oil", "Gas") 
-t_units <- ifelse(t_select == 1, 1, 365/12)
+t_units <- 365/12
 
 ##filter and rename the production table================================================
 
 ##use ihs prod tbl for the code below===================================================
 input <- prod_tbl %>%
   ##need to ensure Time is time/data units for consistency
-  mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"), 
-                           origin = "1970-01-01", tz = "UTC"), 
-         Liquid = as.numeric( Liquid / t_units ), 
-         Gas = as.numeric( Gas / t_units )) %>%
+  mutate(Time = as.POSIXct(as.Date(ProductionDate , "%m/%d/%Y"),           
+                           origin = "1970-01-01", tz="UTC"),  #convert P_DATE to consistant units
+         Oil_d = Liquid / t_units,   #convert to average daily rate
+         Gas_d =  Gas / t_units ) %>%   #convert to average daily rate
   select(WellId = Entity,
          Time,
-         Oil = Liquid, 
-         Gas, 
+         Oil_d, 
+         Gas_d, 
          EffLat = PerfIntervalGross)
-##end of ihs prod tbl=====================================================================
-
+input[is.na(input)] <- 0
 ##use ariesMaster monthly (AC_PRODUCT prod tbl for the code below=========================
-input <- prod_tbl %>%
-  mutate(Time = as.POSIXct(as.Date(P_DATE , "%m/%d/%Y"),           #convert P_DATE to consistant units
-                           origin = "1970-01-01", tz="UTC"),
-         OilD = OIL / t_units, 
-         GasD = GAS / t_units) %>%
-  select(WellId = PROPNUM,
-         Time,
-         Oil, 
-         Gas, 
-         EffLat = EFF_LAT)
+#input <- prod_tbl %>%
+#  mutate(Time = as.POSIXct(as.Date(P_DATE , "%m/%d/%Y"),           #convert P_DATE to consistant units
+#                           origin = "1970-01-01", tz="UTC"),
+#         OilD = OIL / t_units, 
+#         GasD = GAS / t_units) %>%
+#  select(WellId = PROPNUM,
+#         Time,
+#         Oil, 
+#         Gas, 
+#         EffLat = EFF_LAT)
 
-##end of ariesMaster prod tbl===============================================================
-
-
-##based upon the pPhase, filter out zero months and minimum lateral lengths
+##based upon the pPhase, filter out zero months and minimum lateral lengths==============
 if(og_select == 6)
 {
-  input <- filter(input, OilD > 0 & EffLat > min_lat)
+  input <- filter(input, Oil_d > 0 & EffLat > min_lat)
 }else{
-  input <- filter(input, GasD > 0 & EffLat > min_lat)
+  input <- filter(input, Gas_d > 0 & EffLat > min_lat)
 }
 
 
 ##create average table===================================================================
 if(nrow(input) == 0)
 {#in no wells are selected, create an Average table with zeros 
-  AVERAGE.MONTHLY <- data.frame(WellName = c("None"), Time = Sys.time(),
+  AverageMonthly <- data.frame(WellName = c("None"), Time = Sys.time(),
                                 EffLat = 0, Months = 0, WellCount = 0,
                                 Gas_avg = 0, Gas_p10 = 0, Gas_p50 = 0, Gas_p90 = 0, 
                                 Oil_avg = 0, Oil_p10 = 0, Oil_p50 = 0, Oil_p90 = 0, 
@@ -104,48 +100,43 @@ if(nrow(input) == 0)
 }else{
   
   ##################dplyr package used for data wrangling####################
-  AVERAGE.MONTHLY <- input %>%
+  AverageMonthly <- input %>%
     arrange(WellId, Time) %>%
     group_by(WellId) %>%
     mutate(RowCount = 1, #create a column for wellcount by placeing a 1 in every row
-           Months = cumsum(RowCount), 
-           Oil1 = Oil / EffLat * normal_lat, #normalized to effective lateral 
-           Gas1 = Gas / EffLat * normal_lat,
-           Oil1M = Oil1 * 365/12,
-           Gas1M = Gas1 * 365/12,
-           Yield1 = ifelse( !is.na(Oil) & !is.na(Gas), Oil / ( Gas / 1000 ), NA), #bbl/mmcf
-           GOR1 = ifelse( !is.na(Oil) & !is.na(Gas), ( Gas * 1000 ) / Oil, NA), #scf/bbl
-           CUMOil1 = cumsum(ifelse( !is.na(Oil1M), Oil1M, 0 )),
-           CUMGas1 = cumsum(ifelse( !is.na(Gas1M), Gas1M, 0 ))) %>% 
+           Months = cumsum(RowCount),
+           #normalized to effective lateral
+           #dn = daily normalized, mn = monthly normalized
+           Oil_dn = Oil_d / EffLat * normal_lat, #bbl
+           Gas_dn = Gas_d / EffLat * normal_lat, #mcf
+           Oil_mn = Oil_dn / 1000 * t_units, #mbo per month
+           Gas_mn = Gas_dn / 1000 * t_units, #mmcf per month
+           CUMOil_mn = cumsum(Oil_mn), #mbo
+           CUMGas_mn = cumsum(Gas_mn)) %>% #mmcf  
     group_by( Months ) %>%
-    summarise(Gas_avg = mean(Gas1, na.rm = TRUE), #mcf
-              Gas_p10 = quantile(Gas1, p = 0.90, na.rm = TRUE), #mcf
-              Gas_p50 = median(Gas1, na.rm = TRUE), #mcf
-              Gas_p90 = quantile(Gas1, p = 0.10, na.rm = TRUE), #mcf
-              Oil_avg = mean(Oil1, na.rm = TRUE), #bbl
-              Oil_p10 = quantile(Oil1, p = 0.90, na.rm = TRUE), #bbl
-              Oil_p50 = median(Oil1, na.rm = TRUE), #bbl
-              Oil_p90 = quantile(Oil1, p = 0.10, na.rm = TRUE), #bbl
-              CUMGas_avg = mean(CUMGas1) / 1000, #mmcf
-              CUMGas_p10 = quantile(CUMGas1, p = 0.90) / 1000, #mmcf
-              CUMGas_p50 = median(CUMGas1) / 1000, #mmcf
-              CUMGas_p90 = quantile(CUMGas1, p = 0.10) / 1000, #mmcf
-              CUMOil_avg = mean(CUMOil1) / 1000, #mbo
-              CUMOil_p10 = quantile(CUMOil1, p = 0.90) / 1000, #mbo,
-              CUMOil_p50 = median(CUMOil1) / 1000, #mbo
-              CUMOil_p90 = quantile(CUMOil1, p = 0.10) / 1000, #mbo,
-              Yield_avg = mean(Yield1, na.rm = TRUE), #bbl/mmcf
-              #YieldP_10 = quantile(Yield1, p = 0.90, na.rm = TRUE), #bbl/mmcf 
-              #Yield_p50 = median(Yield1, na.rm = TRUE), #bbl/mmcf 
-              #Yield_p90 = quantile(Yield1, p = 0.10, na.rm = TRUE), #bbl , #bbl/mmcf
-              GOR_avg = mean(GOR1, na.rm = TRUE),  #scf/bbl
-              #GOR_p10 = quantile(GOR1, p = 0.90, na.rm = TRUE), #scf/bbl 
-              #GOR_p50 = median(GOR1, na.rm = TRUE),  #scf/bbl
-              #GOR_p90 = quantile(GOR1, p = 0.10, na.rm = TRUE), #scf/bbl
+    summarise(Gas_avg = mean(Gas_dn, na.rm = TRUE), #mcf
+              Gas_p10 = quantile(Gas_dn, p = 0.90, na.rm = TRUE), #mcf
+              Gas_p50 = median(Gas_dn, na.rm = TRUE), #mcf
+              Gas_p90 = quantile(Gas_dn, p = 0.10, na.rm = TRUE), #mcf
+              Oil_avg = mean(Oil_dn, na.rm = TRUE), #bbl
+              Oil_p10 = quantile(Oil_dn, p = 0.90, na.rm = TRUE), #bbl
+              Oil_p50 = median(Oil_dn, na.rm = TRUE), #bbl
+              Oil_p90 = quantile(Oil_dn, p = 0.10, na.rm = TRUE), #bbl
+              CUMGas_avg = mean(CUMGas_mn), #mmcf
+              CUMGas_p10 = quantile(CUMGas_mn, p = 0.90), #mmcf
+              CUMGas_p50 = median(CUMGas_mn), #mmcf
+              CUMGas_p90 = quantile(CUMGas_mn, p = 0.10), #mmcf
+              CUMOil_avg = mean(CUMOil_mn), #mbo
+              CUMOil_p10 = quantile(CUMOil_mn, p = 0.90), #mbo,
+              CUMOil_p50 = median(CUMOil_mn), #mbo
+              CUMOil_p90 = quantile(CUMOil_mn, p = 0.10), #mbo,
+              Yield_avg = Oil_avg / ( Gas_avg / 1000), #bbl/mmcf
+              GOR_avg = (Gas_avg * 1000) / Oil_avg,  #scf/bbl
               WellCount = sum(RowCount)) %>%  #sum up RowCount which will give you a wellcount column
     filter(WellCount > minWellcount) %>%
     mutate_if(is.integer, as.numeric)
 }
+
 
 ##create a Rdata file to load in R========================================================
 TimeStamp=paste(date(),Sys.timezone())

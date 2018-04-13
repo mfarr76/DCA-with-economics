@@ -2,12 +2,12 @@ rm(list = ls())
 library(dplyr)
 ##LOAD - TESTING ONLY=============================================================
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/average.RData")
-#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
+#load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.AT.RData")
 #load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/avg.mnth.at.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU_AT.RData")
 
-
+##inputs for testing==================================================
 b <- 1
 di <- 60
 dMin <- 8
@@ -16,8 +16,8 @@ ms <- 2 #multisegment forecast 1 = On 2 = Off
 abRate <- 1
 time_ms <- 3
 di_ms <- 90
-og_select <- 2
-curve_select <- 3
+og_select <- 6
+curve_select <- 2
 write.csv(AVERAGE.MONTHLY, file = "prod.csv")
 write.csv(DCA.Forecast, file = "dca.csv")
 
@@ -32,7 +32,7 @@ if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.r
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 
-##inputs from spotfire
+##inputs from spotfire================================================================
 AVERAGE.MONTHLY          #data loaded from average table 
 og_select                #primary phase
 curve_select             #Average,P10, P50, P90 curve selection
@@ -47,7 +47,7 @@ di_ms                    #decline of ms
 t_select <- 1            #select months or days
 t_units <- ifelse(t_select == 1, 12, 365/12)
 
-##Decline parameters
+##Decline parameters==================================================================
 di <- di/100
 dMin <- dMin/100
 di_ms <- di_ms/100
@@ -66,23 +66,23 @@ a_yr <- ( 1 / b) * (( 1 / ( 1 - di ))^b - 1 ) #nominal deline in years
 cInput <- og_select + curve_select
 ##create table to calculate buildup properties====================================
 
-##reduce the columns needed (1:6) from the average table
-if(nrow(AVERAGE.MONTHLY) > 1){
-  user_phase <- AVERAGE.MONTHLY[1:6, 1:9] * 365 / 12 #convert to monthly volumes
-}else{
-  user_phase <- data.frame(Months = c(0), Phase = c(0))
-}
 
-##if statement to return 0's if no wells are selected
-if(ncol(user_phase) == 2){
+if(nrow(AVERAGE.MONTHLY) == 1){
   mnth1_rate <- c(0)
   qi <- c(0)
   time_to_peak <- c(0)
-}else{
-  mnth1_rate <- (user_phase[1,cInput])                     #1st month volume
-  qi <- (max(user_phase[cInput], na.rm = TRUE))            #max rate
-  time_to_peak <- which.max(as.matrix(user_phase[cInput])) #time to max volume...limited by user_phase table
+}else if(autoPick == 1){
+    user_phase <- AVERAGE.MONTHLY[1:6, 1:9] * 365 / 12       #convert to monthly volumes
+    mnth1_rate <- (user_phase[1,cInput])                     #1st month volume
+    qi <- (max(user_phase[cInput], na.rm = TRUE))            #max rate
+    time_to_peak <- which.max(as.matrix(user_phase[cInput])) #time to max volume...limited by user_phase table
+    
+  }else{
+    mnth1_rate <- (AVERAGE.MONTHLY[1,cInput]) * 365 / 12     #1st month volume
+    qi <- (AVERAGE.MONTHLY[IPMonth,cInput])   * 365 / 12     #max rate
+    time_to_peak <- IPMonth                                  #time to max volume...limited by user_phase table
 }
+
 
 ##dMin calcs====================================================================
 a_dMin <- -log(1 - dMin)/ t_units #nominal decline dMin
@@ -107,7 +107,7 @@ if(ms == 1){
   ai_hyp <- (1 / (t_units * b))*((1 - di)^- b-1) #nominal deline per time units 
   qi_back_calc <- (qi * ai_hyp * (1 - b)) / (1 - 1 / (1 + ai_hyp * b)^((1 - b)/b)) ##hyperbolic - #back calc qi based on Np (month 1)
 }
-qi.back.calc <- qi_back_calc #change it back to spotfire friendly variable
+
 
 ##time calculation for different decline equations===============================
 
@@ -133,7 +133,7 @@ DCA <- function(b, di, dMin, di_ms, forecast_years, time_ms) #function to run DC
     if(time_to_peak > 1)
     {
       time_to_peak1 <- time_to_peak - 1
-      user_phase[ 1:time_to_peak1, cInput ]
+      AVERAGE.MONTHLY[ 1:time_to_peak1, cInput ] * 365 / 12 
     }
   
   forecast_exp <- #expontial arps
@@ -241,9 +241,11 @@ if(nrow(AVERAGE.MONTHLY) == 1)
            Ratio, 
            cumGas_mmcf, 
            cumOil_mbo) %>%
-    left_join(., AVERAGE.MONTHLY %>%
+    left_join(., AVERAGE.MONTHLY %>% #join avg daily oil and gas rates from average table
+                rename(Gas_avg_mcf_d = Gas_avg, 
+                       Oil_avg_bbl_d = Oil_avg) %>%
                 select(Time = Months, WellCount, 
-                       Gas_avg, Oil_avg), by = "Time")
+                       Gas_avg_mcf_d, Oil_avg_bbl_d), by = "Time")
   
 }
 
@@ -262,14 +264,16 @@ if(nrow(AVERAGE.MONTHLY) == 1)
            GasEUR_mmcf = sum(Gas_mcf, na.rm = TRUE)/1000, #mmcf
            OilEUR_mbo = sum(Oil_bbl, na.rm = TRUE)/1000, #mbo
            TotalEUR_mboe = GasEUR_mmcf/6 + OilEUR_mbo, #mboe
-           qi_back_calc = qi_back_calc / (365 / 12)) %>% #conver to days - mboe
+           qi_back_calc = qi_back_calc / (365 / 12), 
+           time_to_peak = as.integer(time_to_peak)) %>% #conver to days - mboe
     filter(Time == 12) %>%
     select(CumGas12MO_mmcf,
            CumOil12MO_mbo,
            GasEUR_mmcf, 
            OilEUR_mbo, 
            TotalEUR_mboe,
-           qi_back_calc)
+           qi_back_calc, 
+           time_to_peak)
 }   
 
 TimeStamp=paste(date(),Sys.timezone())

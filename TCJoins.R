@@ -8,6 +8,7 @@ load("C:/Users/MFARR/Documents/R_files/Spotfire.data/DCAwBU.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/Yield.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcgroup.RData")
 load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tbl4r.RData")
+load("C:/Users/MFARR/Documents/R_files/Spotfire.data/tcjoin_at.RData")
 
 ##choose which data you want to load....need average data
 #prod <- load("C:/Users/MFARR/Google Drive/r scripts/Spotfire/average.in.RData")
@@ -160,10 +161,10 @@ TcWellList <- wellheader %>%
 
 TcParameters <- data.frame(TC_Group = user_TCname, Primary_phase = ifelse(og_select == 2, "Gas", "Oil"), 
                             Curve_description = ifelse(curveSelect == 0, "Average", ifelse(curveSelect == 1, "P10", "P90")),
-                            Min_lat_length = minLat, Norm_lat_length = EffLat,Min_well_count = MinWellCount, 
-                            MS_On_Off = ifelse(ms == 1, "ON", "OFF"), MS_Time = time_ms,
-                            MS_Di = di_ms, qi, Di = di, b, Dmin, Ratio_segment = time_segment,
-                            Initial_ratio = ratio_1_user, Second_ratio = ratio_2_user, Final_ratio = ratio_3_user,
+                            Norm_lat_length = EffLat,Min_well_count = minWellcount, 
+                            MS_On_Off = ifelse(msOnOff == 1, "ON", "OFF"), MS_Time = msTime,
+                            MS_Di = msDi, qi, Di = di, b, dmin, Ratio_segment = timeRatio,
+                            Initial_ratio = ratio1, Second_ratio = ratio2, Final_ratio = ratio3,
                             Ab_rate = abRate, Forecast_years = forecast_years, Gas_EUR_mmcf = max(DCA.Forecast$cumGas_mmcf, na.rm = TRUE), 
                             Oil_EUR_mbo = max(DCA.Forecast$cumOil_mbo, na.rm = TRUE))
 
@@ -184,7 +185,7 @@ TcParameters <- TcParameters %>%
 ##user must have a odbc data source "Microsoft Access Driver (*.mdb, *.accdb)
 ##installed on their machine to communicate with Access
 
-##load drivers, file location, and name of the table you want to save
+##load drivers, file location, and name of the table you want to save=============
 driver <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)}" ##load the odbc driver
 #dLocation <- "C:/Users/mfarr/Documents/Spotfire.accdb"
 dLocation <- AccessFilePath ##file path from input table

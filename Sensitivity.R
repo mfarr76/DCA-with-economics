@@ -15,13 +15,13 @@ list.of.packages <- c("dplyr", "tibble", "purrr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos =  "https://mran.revolutionanalytics.com/snapshot/2017-05-01/")
 
-##load package==============================================================================
+
+##load package=======================================================================
 library(dplyr, warn.conflicts = FALSE)
 library(tibble, warn.conflicts = FALSE)
 library(purrr, warn.conflicts = FALSE)
 
-
-##user inputs saved to a tbl
+##user inputs saved to a tbl=========================================================
 econTable
 
 econTable <- na.omit(econTable)
@@ -32,7 +32,7 @@ tc_name <- unique(econTable$TC_Group)
 
 capex_mnth <- 1 #hard code, not setup to change at this time
 
-##for loop to generate uniques wellnames and store it in tc_list
+##for loop to generate uniques wellnames and store it in tc_list=====================
 tc_list <- list()
 for(i in seq_along(tc_name))
 {
@@ -40,8 +40,7 @@ for(i in seq_along(tc_name))
 }
 
 
-
-####get price entered from user input box
+##get price entered from user input box==============================================
 user_price <- data.frame()
 for(i in seq_along(tc_name))
 {
@@ -59,7 +58,7 @@ TcForecast <- TcForecast %>%
   filter(Well_Type == "TypeCurve") %>%
   select(TC_Group, Time, Gas_mcf_TC, Oil_bbl_TC)
 
-
+##cashflow function===================================================================
 cshflow <- function(x, y) #x = list of wellnames y = price file
 { #first use subset function (reduce) the TC table (TCGroup) to the first TC in the tc.list
   #do the same for the econTable to so you have the correct values per TC
@@ -112,7 +111,7 @@ cshflow <- function(x, y) #x = list of wellnames y = price file
 }
 
 
-#cashflow loop for all the TC
+#cashflow loop for all the TC============================================================
 CashFlow <- data.frame()
 
 for(i in seq_along(tc_name)) #number of time to loop
@@ -249,3 +248,11 @@ Econ.Metrics <- data.frame(TC_Group = tc_name, map_df(seq_along(tc_list), CF_Met
 TimeStamp=paste(date(),Sys.timezone())
 tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
 if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/cashflow.RData',sep=''), RFormat=T )))
+
+
+
+tc_list1 <- pmap(list(econTable$TC_Group), unique)
+#tc_list2 <- sapply(list(econTable$TC_Group), unique)
+#tc_list2 <- lapply(list(econTable$TC_Group), unique)
+tc_list3 <- lapply(econTable$TC_Group, function(x) unique((x)))
+types <- sapply(econTable[,cols], class)

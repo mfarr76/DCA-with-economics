@@ -1,110 +1,77 @@
 rm(list = ls())
-forecast_years <- 30
-forecast_time <- 30*12
-time_segment <- 7
-ratio_1_user <- 500
-ratio_2_user <- 1300
-ratio_3_user <- 1300
-mnth_day_select <- 1
-og_select <- 1
 
-#time_units <- ifelse(mnth_day_select == 1, 12, 365)
 
-forecast_time <- forecast_years * 12
-time_segment <- as.integer(20*30.44)
-GOR1T
+t1 <- 5
+r1 <- 1
+r2 <- 1
+r3 <- 1
+years <- 30
 
-aries_yield <- function(forecast_time, time_segment, ratio_1_user, ratio_2_user, ratio_3_user)
+
+
+
+###Michael Farr SM Energy
+##yield/gor forecast that was checked against aries LOG 2 segment forecast
+
+####user inputs from property controls
+mnth_day_select <- 1 #for monthly forecast
+og_select
+t1
+r1
+r2
+r3
+years
+
+#t_units <- ifelse(mnth_day_select == 1, 12, 365)
+t_units <- 12
+prod_time <- years * t_units
+
+ratio <- function(t1, r1, r2, r3)
 {
-
-  
   ##1st segment##
-  a_1 <- if(ratio_1_user == 0) {0
-    }else{
-      log( ratio_1_user / ratio_2_user) / time_segment} ##calc nominal decline
-  t_1 <- seq_along(1 : time_segment) #length of 1st segment
+  a1 <- if( r1 == 0 ) { 0
+  }else{
+    log( r1 / r2 ) / t1 
+  } ##calc nominal decline
   
-  ##ratio calc for the month
-  ratio_1_forecast <- ratio_1_user * exp( -a_1 * (t_1 - 1)) #ratio beginning of month
-  ratio_2_forecast <- ratio_1_user * exp( -a_1 * t_1) #ratio at the end of the month
+  time1 <- seq_len( t1 ) #length of 1st segment
   
   ##ratio for the month 
   ##if true then flat yield
-  r_1 <- if(ratio_1_user == ratio_2_user){ 
-    ratio_1_forecast
+  r1_fc <- if( r1 == r2 ){ 
+    rep(r1, t1)
   }else{
-   (ratio_1_forecast - ratio_2_forecast) / a_1
+    ( r1 * exp( -a1 * ( time1 - 1 )) - 
+        r1 * exp( -a1 * time1 ))/a1
   }
+  
   
   ###2nd segment
-  t_2 <- forecast_time - time_segment
-  t_3 <- seq_along(1 : t_2)
+  t2 <- prod_time - t1
+  t3 <- seq_len( t2 )
   
   ###check to see if flat yield for 2nd seg
-  ###if true then append r.1 to flat forecast
-  if(ratio_2_user == ratio_3_user){
-    append(r_1, (rep(ratio_2_user, t_2)))
+  ###if true then append r_1 to flat forecast
+  if( r2 == r3 ){
+    append( r1_fc, (rep( r2, t2 )))
   } else {
+    a2 <- log( r2 / r3 ) / t2 ###calc nominal decline
     
-    a_2 <- log(ratio_2_user / ratio_3_user) / t_2 ###calc nominal decline
-    
-    ###ratio for the month
-    ratio_3_forecast <- ratio_2_user * exp( -a_2 * (t_3 - 1))
-    ratio_4_forecast <- ratio_2_user * exp( -a_2 * t_3)
-    
-    r_2 <- (ratio_3_forecast - ratio_4_forecast) / a_2
-    
-    ###append r.1 and r.2 for gor/yield forecast
-    append(r_1,r_2)
-    
-    ##Spotfire for some reason doesn't pick this up...only return Yield column??
-    #result <- data.frame(Time = seq_along(1:forecast.time), Yield = append(r.1,r.2))
-  }
-
-}
-
-##must change class of Time to numeric to join with DCA table
-YieldForecast <- data.frame(Time = as.numeric(seq_along(1:forecast_time)), secondary = aries_yield(forecast_time, time_segment, ratio_1_user, ratio_2_user, ratio_3_user))
-
-
-
-rForecast <- function(forecast_time, t1Segment, ratio1, ratio2, ratio3)
-{
-  ##1st segment##
-  a1 <- if( ratio1 == 0 ) { 0
-  }else{
-    log( ratio1 / ratio2 ) / t1Segment } ##calc nominal decline
-  t1 <- seq_along(1 : t1Segment) #length of 1st segment
-  
-  ##ratio for the month 
-  ##if true then flat yield
-  r1_forecast <- if( ratio1 == ratio2 ){ 
-    ratio1
-  }else{
-    ( ratio1 * exp( -a1 * (t1 - 1)) - 
-        ratio1 * exp( -a1 * t1))/a1
-  }
-  
-  ###2nd segment
-  t2 <- forecast_time - t1Segment
-  t3 <- seq_along( 1 : t2 )
-  
-  ###check to see if flat yield for 2nd seg
-  ###if true then append r.1 to flat forecast
-  if( ratio2 == ratio3 ){
-    append( r1_forecast, (rep(ratio2, t2)))
-  } else {
-    a2 <- log( ratio2 / ratio3 ) / t2 ###calc nominal decline
-    
-    ###ratio for the month
-    r2_forecast <- ( ratio2 * exp( -a2 * (t3 - 1)) - 
-                       ratio2 * exp( -a2 * t3)) / a2
+    ###r for the month
+    r2_fc <- ( r2 * exp( -a2 * ( t3 - 1 )) - 
+                 r2 * exp( -a2 * t3 )) / a2
     
     ###append gor/yield forecast
-    c( r1_forecast,r2_forecast )
+    c( r1_fc,r2_fc )
     
   }
   
 }
 
-rForecast(30, 7, 500, 1300, 1300)
+Yield <- data.frame(Time = as.numeric(seq_along(1:prod_time)), secondary = ratio(t1, r1, r2, r3))
+
+
+
+TimeStamp=paste(date(),Sys.timezone())
+tdir = 'C:/Users/MFARR/Documents/R_files/Spotfire.data' # place to store diagnostics if it exists (otherwise do nothing)
+if(file.exists(tdir) && file.info(tdir)$isdir) suppressWarnings(try(save(list=ls(), file=paste(tdir,'/Yield.AT.RData',sep=''), RFormat=T )))
